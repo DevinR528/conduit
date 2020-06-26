@@ -51,6 +51,7 @@ use ruma::{
                 get_state_events_for_empty_key, get_state_events_for_key,
             },
             sync::sync_events,
+            tag::create_tag,
             thirdparty::get_protocols,
             to_device::{self, send_event_to_device},
             typing::create_typing_event,
@@ -3308,6 +3309,70 @@ pub fn set_pushers_route() -> ConduitResult<get_pushers::Response> {
     }
     .into())
 }
+
+#[put(
+    "/_matrix/client/r0/user/<path_user_id>/rooms/<_room_id>/tags/<_tag>",
+    data = "<body>"
+)]
+pub fn update_tag_route(
+    db: State<'_, Database>,
+    path_user_id: String,
+    _room_id: String,
+    _tag: String,
+    body: Ruma<create_tag::Request>,
+) -> ConduitResult<create_tag::Response> {
+    let user_id = body.user_id.as_ref().expect("user is authenticated");
+    if user_id.to_string() != path_user_id {
+        return Err(Error::bad_database("todo: change for forbidden"));
+    }
+    let room_id = &body.room_id;
+    let tag = &body.tag;
+    let tag_info = &body.tag_info;
+
+    let tags_event = db
+        .account_data
+        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .unwrap_or_else(|| ruma::events::tag::TagEvent {
+            content: ruma::events::tag::TagEventContent {
+                tags: BTreeMap::new(),
+            },
+        });
+    tags_event.content
+
+    Ok(create_tag::Response.into())
+}
+
+/*
+#[delete("/_matrix/client/r0/user/<path_user_id>/rooms/<_room_id>/tags/<_tag>", data = "<body>")]
+pub fn delete_tag_route(
+    db: State<'_, Database>,
+    path_user_id: String,
+    _room_id: String,
+    _tag: String,
+    body: Ruma<create_tag::Request>,
+) -> ConduitResult<create_tag::Response> {
+    let user_id = body.user_id.as_ref().expect("user is authenticated");
+    if user_id.to_string() != path_user_id {
+        return Err(Error::bad_database("todo: change for forbidden"));
+    }
+    let room_id = &body.room_id;
+    let tag = &body.tag;
+
+    db.account_data
+        .update(
+            Some(room_id),
+            user_id,
+            &EventType::Tag,
+            serde_json::to_value(tag_event)
+                .expect("serialization works")
+                .as_object_mut()
+                .expect("is an object"),
+            &db.globals
+        )?;
+
+    Ok(create_tag::Response.into())
+}
+ */
 
 #[options("/<_segments..>")]
 pub fn options_route(

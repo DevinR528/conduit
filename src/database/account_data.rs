@@ -4,6 +4,8 @@ use ruma::{
     events::{AnyEvent as EduEvent, EventJson, EventType},
     identifiers::{RoomId, UserId},
 };
+use serde::{de::DeserializeOwned, Deserialize};
+use sled::IVec;
 use std::{collections::HashMap, convert::TryFrom};
 
 pub struct AccountData {
@@ -85,6 +87,28 @@ impl AccountData {
         Ok(self.all(room_id, user_id)?.remove(kind))
     }
 
+    // TODO: Replace by get?
+    pub fn find<T: ruma::events::TryFromRaw>(
+        //  TODO: once migrated to ruma events, use marker trait
+        &self,
+        room_id: Option<&RoomId>,
+        user_id: &UserId,
+        kind: EventType,
+    ) -> Result<Option<T>> {
+        self.iter(room_id, user_id)
+            .filter_map(|v| v.ok())
+            .filter(|(k, _)| k.ends_with(kind.to_string().as_bytes()))
+            .map(|(_, v)| {
+                let ej =
+                    serde_json::from_slice::<EventJson<T>>(&v).expect("event json is unfallible");
+
+                ej.deserialize()
+                    .map_err(|_| Error::BadDatabase("could not deserialize"))
+            })
+            .next()
+            .transpose()
+    }
+
     /// Returns all changes to the account data that happened after `since`.
     pub fn changes_since(
         &self,
@@ -141,5 +165,22 @@ impl AccountData {
         user_id: &UserId,
     ) -> Result<HashMap<EventType, EventJson<EduEvent>>> {
         self.changes_since(room_id, user_id, 0)
+    }
+
+    fn iter(
+        &self,
+        room_id: Option<&RoomId>,
+        user_id: &UserId,
+    ) -> impl Iterator<Item = std::result::Result<(IVec, IVec), sled::Error>> {
+        let mut prefix = room_id
+            .map(|r| r.to_string())
+            .unwrap_or_default()
+            .as_bytes()
+            .to_vec();
+        prefix.push(0xff);
+        prefix.extend_from_slice(&user_id.to_string().as_bytes());
+        prefix.push(0xff);
+
+        self.roomuserdataid_accountdata.scan_prefix(prefix)
     }
 }
