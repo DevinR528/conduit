@@ -100,6 +100,7 @@ fn setup_rocket() -> rocket::Rocket {
                 client_server::delete_device_route,
                 client_server::delete_devices_route,
                 client_server::update_tag_route,
+                client_server::delete_tag_route,
                 client_server::options_route,
                 client_server::upload_signing_keys_route,
                 client_server::upload_signatures_route,

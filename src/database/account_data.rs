@@ -76,6 +76,61 @@ impl AccountData {
         Ok(())
     }
 
+    /// Places one event in the account data of the user and removes the previous entry.
+    pub fn update2<T: ruma::events::Event>(
+        &self,
+        room_id: Option<&RoomId>,
+        user_id: &UserId,
+        kind: &EventType,
+        event: &T,
+        globals: &super::globals::Globals,
+    ) -> Result<()> {
+        let user_id_string = user_id.to_string();
+        let kind_string = kind.to_string();
+
+        let mut prefix = room_id
+            .map(|r| r.to_string())
+            .unwrap_or_default()
+            .as_bytes()
+            .to_vec();
+        prefix.push(0xff);
+        prefix.extend_from_slice(&user_id_string.as_bytes());
+        prefix.push(0xff);
+
+        // Remove old entry
+        if let Some(old) = self
+            .roomuserdataid_accountdata
+            .scan_prefix(&prefix)
+            .keys()
+            .rev()
+            .filter_map(|r| r.ok())
+            .take_while(|key| key.starts_with(&prefix))
+            .find(|key| {
+                let user = key.split(|&b| b == 0xff).nth(1);
+                let k = key.rsplit(|&b| b == 0xff).next();
+
+                user.filter(|&user| user == user_id_string.as_bytes())
+                    .is_some()
+                    && k.filter(|&k| k == kind_string.as_bytes()).is_some()
+            })
+        {
+            // This is the old room_latest
+            self.roomuserdataid_accountdata.remove(old)?;
+        }
+
+        let mut key = prefix;
+        key.extend_from_slice(&globals.next_count()?.to_be_bytes());
+        key.push(0xff);
+        key.extend_from_slice(kind.to_string().as_bytes());
+
+        self.roomuserdataid_accountdata.insert(
+            key,
+            &*serde_json::to_string(&event).expect("Map::to_string always works"),
+        )?;
+
+        Ok(())
+    }
+
     // TODO: Optimize
     /// Searches the account data for a specific kind.
     pub fn get(
@@ -101,7 +156,6 @@ impl AccountData {
             .map(|(_, v)| {
                 let ej =
                     serde_json::from_slice::<EventJson<T>>(&v).expect("event json is unfallible");
-
                 ej.deserialize()
                     .map_err(|_| Error::BadDatabase("could not deserialize"))
             })

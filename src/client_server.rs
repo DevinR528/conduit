@@ -51,7 +51,7 @@ use ruma::{
                 get_state_events_for_empty_key, get_state_events_for_key,
             },
             sync::sync_events,
-            tag::create_tag,
+            tag::{create_tag, delete_tag},
             thirdparty::get_protocols,
             to_device::{self, send_event_to_device},
             typing::create_typing_event,
@@ -3337,20 +3337,33 @@ pub fn update_tag_route(
                 tags: BTreeMap::new(),
             },
         });
-    tags_event.content
+    tags_event
+        .content
+        .tags
+        .insert(tag.to_string(), tag_info.clone());
+
+    db.account_data.update2(
+        Some(room_id),
+        user_id,
+        &EventType::Tag,
+        &tags_event,
+        &db.globals,
+    )?;
 
     Ok(create_tag::Response.into())
 }
 
-/*
-#[delete("/_matrix/client/r0/user/<path_user_id>/rooms/<_room_id>/tags/<_tag>", data = "<body>")]
+#[delete(
+    "/_matrix/client/r0/user/<path_user_id>/rooms/<_room_id>/tags/<_tag>",
+    data = "<body>"
+)]
 pub fn delete_tag_route(
     db: State<'_, Database>,
     path_user_id: String,
     _room_id: String,
     _tag: String,
-    body: Ruma<create_tag::Request>,
-) -> ConduitResult<create_tag::Response> {
+    body: Ruma<delete_tag::Request>,
+) -> ConduitResult<delete_tag::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
     if user_id.to_string() != path_user_id {
         return Err(Error::bad_database("todo: change for forbidden"));
@@ -3358,21 +3371,26 @@ pub fn delete_tag_route(
     let room_id = &body.room_id;
     let tag = &body.tag;
 
-    db.account_data
-        .update(
-            Some(room_id),
-            user_id,
-            &EventType::Tag,
-            serde_json::to_value(tag_event)
-                .expect("serialization works")
-                .as_object_mut()
-                .expect("is an object"),
-            &db.globals
-        )?;
+    let mut tags_event = db
+        .account_data
+        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .unwrap_or_else(|| ruma::events::tag::TagEvent {
+            content: ruma::events::tag::TagEventContent {
+                tags: BTreeMap::new(),
+            },
+        });
+    tags_event.content.tags.remove(tag);
 
-    Ok(create_tag::Response.into())
+    db.account_data.update2(
+        Some(room_id),
+        user_id,
+        &EventType::Tag,
+        &tags_event,
+        &db.globals,
+    )?;
+
+    Ok(delete_tag::Response.into())
 }
- */
 
 #[options("/<_segments..>")]
 pub fn options_route(
