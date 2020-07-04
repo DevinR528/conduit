@@ -3306,7 +3306,10 @@ pub fn update_tag_route(
 ) -> ConduitResult<create_tag::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
     if user_id.to_string() != path_user_id {
-        return Err(Error::bad_database("todo: change for forbidden"));
+        return Err(Error::BadRequest(
+            ErrorKind::InvalidUsername,
+            "mismatching user",
+        ));
     }
     let room_id = &body.room_id;
     let tag = &body.tag;
@@ -3344,7 +3347,10 @@ pub fn delete_tag_route(
 ) -> ConduitResult<delete_tag::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
     if user_id.to_string() != path_user_id {
-        return Err(Error::bad_database("todo: change for forbidden"));
+        return Err(Error::BadRequest(
+            ErrorKind::InvalidUsername,
+            "mismatching user",
+        ));
     }
     let room_id = &body.room_id;
     let tag = &body.tag;
@@ -3377,7 +3383,10 @@ pub fn get_tags_route(
 ) -> ConduitResult<get_tags::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
     if user_id.to_string() != path_user_id {
-        return Err(Error::bad_database("todo: change for forbidden"));
+        return Err(Error::BadRequest(
+            ErrorKind::InvalidUsername,
+            "mismatching user",
+        ));
     }
     let room_id = &body.room_id;
 
