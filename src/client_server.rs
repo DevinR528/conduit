@@ -51,7 +51,7 @@ use ruma::{
                 get_state_events_for_empty_key, get_state_events_for_key,
             },
             sync::sync_events,
-            tag::{create_tag, delete_tag},
+            tag::{create_tag, delete_tag, get_tags},
             thirdparty::get_protocols,
             to_device::{self, send_event_to_device},
             typing::create_typing_event,
@@ -3390,6 +3390,41 @@ pub fn delete_tag_route(
     )?;
 
     Ok(delete_tag::Response.into())
+}
+
+#[get(
+    "/_matrix/client/r0/user/<path_user_id>/rooms/<_room_id>/tags",
+    data = "<body>"
+)]
+pub fn get_tags_route(
+    db: State<'_, Database>,
+    path_user_id: String,
+    _room_id: String,
+    body: Ruma<get_tags::Request>,
+) -> ConduitResult<get_tags::Response> {
+    let user_id = body.user_id.as_ref().expect("user is authenticated");
+    if user_id.to_string() != path_user_id {
+        return Err(Error::bad_database("todo: change for forbidden"));
+    }
+    let room_id = &body.room_id;
+
+    let current_event = db
+        .account_data
+        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .unwrap_or_else(|| ruma::events::tag::TagEvent {
+            content: ruma::events::tag::TagEventContent {
+                tags: BTreeMap::new(),
+            },
+        });
+
+    // TODO: Fix response on ruma-events. Now the response gets serialized as:
+    /*
+    {"tags":{"tags":{"m.favourite":{"order":0.5}}}}
+     */
+    Ok(get_tags::Response {
+        tags: EventJson::from(current_event.content),
+    }
+    .into())
 }
 
 #[options("/<_segments..>")]

@@ -154,9 +154,9 @@ impl AccountData {
             .filter_map(|v| v.ok())
             .filter(|(k, _)| k.ends_with(kind.to_string().as_bytes()))
             .map(|(_, v)| {
-                let ej =
-                    serde_json::from_slice::<EventJson<T>>(&v).expect("event json is unfallible");
-                ej.deserialize()
+                serde_json::from_slice::<EventJson<T>>(&v)
+                    .expect("event json is unfallible")
+                    .deserialize()
                     .map_err(|_| Error::BadDatabase("could not deserialize"))
             })
             .next()

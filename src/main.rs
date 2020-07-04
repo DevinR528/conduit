@@ -99,6 +99,7 @@ fn setup_rocket() -> rocket::Rocket {
                 client_server::update_device_route,
                 client_server::delete_device_route,
                 client_server::delete_devices_route,
+                client_server::get_tags_route,
                 client_server::update_tag_route,
                 client_server::delete_tag_route,
                 client_server::options_route,
