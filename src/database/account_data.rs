@@ -4,6 +4,7 @@ use ruma::{
     events::{AnyEvent as EduEvent, EventJson, EventType},
     identifiers::{RoomId, UserId},
 };
+use sled::IVec;
 use std::{collections::HashMap, convert::TryFrom};
 
 pub struct AccountData {
@@ -32,23 +33,10 @@ impl AccountData {
         prefix.push(0xff);
 
         // Remove old entry
-        if let Some(old) = self
-            .roomuserdataid_accountdata
-            .scan_prefix(&prefix)
-            .keys()
-            .rev()
-            .filter_map(|r| r.ok())
-            .take_while(|key| key.starts_with(&prefix))
-            .find(|key| {
-                let user = key.split(|&b| b == 0xff).nth(1);
-                let k = key.rsplit(|&b| b == 0xff).next();
-
-                user.filter(|&user| user == user_id_string.as_bytes())
-                    .is_some()
-                    && k.filter(|&k| k == kind_string.as_bytes()).is_some()
-            })
+        if let Some((old, _)) = self
+            .find_events_of_type(room_id, user_id, &event.event_type())
+            .next()
         {
-            // This is the old room_latest
             self.roomuserdataid_accountdata.remove(old)?;
         }
 
@@ -66,31 +54,13 @@ impl AccountData {
     }
 
     pub fn get<T: ruma::events::TryFromRaw>(
-        //  TODO: once migrated to ruma events, use marker trait
         &self,
         room_id: Option<&RoomId>,
         user_id: &UserId,
         kind: EventType,
     ) -> Result<Option<T>> {
-        let mut prefix = room_id
-            .map(|r| r.to_string())
-            .unwrap_or_default()
-            .as_bytes()
-            .to_vec();
-        prefix.push(0xff);
-        prefix.extend_from_slice(&user_id.to_string().as_bytes());
-        prefix.push(0xff);
-
-        self.roomuserdataid_accountdata
-            .scan_prefix(prefix)
-            .filter_map(|v| v.ok())
-            .filter(|(k, _)| k.ends_with(kind.to_string().as_bytes()))
-            .map(|(_, v)| {
-                serde_json::from_slice::<EventJson<T>>(&v)
-                    .expect("event json is unfallible")
-                    .deserialize()
-                    .map_err(|_| Error::BadDatabase("could not deserialize"))
-            })
+        self.find_events_of_type(room_id, user_id, &kind)
+            .map(|(_, v)| AccountData::deserialize_to_type(&v))
             .next()
             .transpose()
     }
@@ -142,5 +112,42 @@ impl AccountData {
         }
 
         Ok(userdata)
+    }
+
+    fn find_events_of_type(
+        &self,
+        room_id: Option<&RoomId>,
+        user_id: &UserId,
+        kind: &EventType,
+    ) -> impl Iterator<Item = (IVec, IVec)> {
+        let mut prefix = room_id
+            .map(|r| r.to_string())
+            .unwrap_or_default()
+            .as_bytes()
+            .to_vec();
+        prefix.push(0xff);
+        prefix.extend_from_slice(&user_id.to_string().as_bytes());
+        prefix.push(0xff);
+        let kind = kind.clone();
+
+        self.roomuserdataid_accountdata
+            .scan_prefix(prefix)
+            .rev()
+            .filter_map(|v| v.ok())
+            .filter(move |(k, _)| AccountData::key_matches_with_event_type(&kind, k))
+    }
+
+    fn deserialize_to_type<T: ruma::events::TryFromRaw>(v: &IVec) -> Result<T> {
+        serde_json::from_slice::<EventJson<T>>(&v)
+            .expect("from_slice always works")
+            .deserialize()
+            .map_err(|_| Error::BadDatabase("could not deserialize"))
+    }
+
+    fn key_matches_with_event_type(kind: &EventType, k: &IVec) -> bool {
+        k.rsplit(|&b| b == 0xff)
+            .next()
+            .map(|current_event_type| current_event_type == kind.to_string().as_bytes())
+            .unwrap_or(false)
     }
 }
