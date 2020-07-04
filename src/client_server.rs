@@ -70,7 +70,6 @@ use ruma::{
     },
     identifiers::{RoomAliasId, RoomId, RoomVersionId, UserId},
 };
-use serde_json::json;
 
 const GUEST_NAME_LENGTH: usize = 10;
 const DEVICE_ID_LENGTH: usize = 10;
@@ -207,15 +206,11 @@ pub fn register_route(
     db.account_data.update(
         None,
         &user_id,
-        &EventType::PushRules,
-        serde_json::to_value(ruma::events::push_rules::PushRulesEvent {
+        &ruma::events::push_rules::PushRulesEvent {
             content: ruma::events::push_rules::PushRulesEventContent {
                 global: crate::push_rules::default_pushrules(&user_id),
             },
-        })
-        .expect("data is valid, we just created it")
-        .as_object_mut()
-        .expect("data is valid, we just created it"),
+        },
         &db.globals,
     )?;
 
@@ -556,19 +551,16 @@ pub fn set_global_account_data_route(
 ) -> ConduitResult<set_global_account_data::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
 
-    db.account_data.update(
-        None,
-        user_id,
-        &EventType::try_from(&body.event_type).expect("EventType::try_from can never fail"),
-        json!(
-            {"content": serde_json::from_str::<serde_json::Value>(body.data.get())
-                .map_err(|_| Error::BadRequest(ErrorKind::BadJson, "Data is invalid."))?
-            }
-        )
-        .as_object_mut()
-        .expect("we just created a valid object"),
-        &db.globals,
-    )?;
+    let content = serde_json::from_str::<serde_json::Value>(body.data.get())
+        .map_err(|_| Error::BadRequest(ErrorKind::BadJson, "Data is invalid."))?;
+
+    let custom_event = ruma::events::custom::CustomEvent {
+        content,
+        event_type: body.event_type.to_string(),
+    };
+
+    db.account_data
+        .update(None, user_id, &custom_event, &db.globals)?;
 
     Ok(set_global_account_data::Response.into())
 }
@@ -1088,16 +1080,12 @@ pub fn set_read_marker_route(
     db.account_data.update(
         Some(&body.room_id),
         &user_id,
-        &EventType::FullyRead,
-        serde_json::to_value(ruma::events::fully_read::FullyReadEvent {
+        &ruma::events::fully_read::FullyReadEvent {
             content: ruma::events::fully_read::FullyReadEventContent {
                 event_id: body.fully_read.clone(),
             },
-            room_id: body.room_id.clone(),
-        })
-        .expect("we just created a valid event")
-        .as_object_mut()
-        .expect("we just created a valid event"),
+            room_id: Some(body.room_id.clone()),
+        },
         &db.globals,
     )?;
 
@@ -3337,13 +3325,8 @@ pub fn update_tag_route(
         .tags
         .insert(tag.to_string(), tag_info.clone());
 
-    db.account_data.update2(
-        Some(room_id),
-        user_id,
-        &EventType::Tag,
-        &tags_event,
-        &db.globals,
-    )?;
+    db.account_data
+        .update(Some(room_id), user_id, &tags_event, &db.globals)?;
 
     Ok(create_tag::Response.into())
 }
@@ -3376,13 +3359,8 @@ pub fn delete_tag_route(
         });
     tags_event.content.tags.remove(tag);
 
-    db.account_data.update2(
-        Some(room_id),
-        user_id,
-        &EventType::Tag,
-        &tags_event,
-        &db.globals,
-    )?;
+    db.account_data
+        .update(Some(room_id), user_id, &tags_event, &db.globals)?;
 
     Ok(delete_tag::Response.into())
 }
