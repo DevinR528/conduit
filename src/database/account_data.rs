@@ -131,20 +131,7 @@ impl AccountData {
         Ok(())
     }
 
-    // TODO: Optimize
-    /// Searches the account data for a specific kind.
-    pub fn get(
-        &self,
-        room_id: Option<&RoomId>,
-        user_id: &UserId,
-        kind: &EventType,
-    ) -> Result<Option<EventJson<EduEvent>>> {
-        Ok(self.all(room_id, user_id)?.remove(kind))
-    }
-
-    // TODO: Replace by get?
-    pub fn find<T: ruma::events::TryFromRaw>(
-        //  TODO: once migrated to ruma events, use marker trait
+    pub fn get<T: ruma::events::TryFromRaw>(
         &self,
         room_id: Option<&RoomId>,
         user_id: &UserId,

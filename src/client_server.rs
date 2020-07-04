@@ -476,23 +476,18 @@ pub fn get_pushrules_all_route(
 ) -> ConduitResult<get_pushrules_all::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
 
-    if let AnyEvent::Basic(AnyBasicEvent::PushRules(pushrules)) = db
+    let event = db
         .account_data
-        .get(None, &user_id, &EventType::PushRules)?
+        .get::<ruma::events::push_rules::PushRulesEvent>(None, &user_id, EventType::PushRules)?
         .ok_or(Error::BadRequest(
             ErrorKind::NotFound,
             "PushRules event not found.",
-        ))?
-        .deserialize()
-        .map_err(|_| Error::BadRequest(ErrorKind::NotFound, "PushRules event in db is invalid."))?
-    {
-        Ok(get_pushrules_all::Response {
-            global: pushrules.content.global,
-        }
-        .into())
-    } else {
-        Err(Error::bad_database("Pushrules event has wrong content."))
+        ))?;
+
+    Ok(get_pushrules_all::Response {
+        global: event.content.global,
     }
+    .into())
 }
 
 #[put(
@@ -590,19 +585,19 @@ pub fn get_global_account_data_route(
 ) -> ConduitResult<get_global_account_data::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
 
-    let event = db
+    let data = db
         .account_data
-        .get(
+        .get::<ruma::events::collections::only::Event>(
             None,
             user_id,
-            &EventType::try_from(&body.event_type).expect("EventType::try_from can never fail"),
-        )?
+            EventType::try_from(&body.event_type).expect("EventType::try_from can never fail")
+        )
         .ok_or(Error::BadRequest(ErrorKind::NotFound, "Data not found."))?;
 
-    let data = serde_json::from_str(event.json().get())
-        .map_err(|_| Error::bad_database("Invalid account data event in db."))?;
-
-    Ok(get_global_account_data::Response { account_data: data }.into())
+    Ok(get_global_account_data::Response {
+        account_data: EventJson::from(data),
+    }
+    .into())
 }
 
 #[put("/_matrix/client/r0/profile/<_user_id>/displayname", data = "<body>")]
@@ -3329,9 +3324,9 @@ pub fn update_tag_route(
     let tag = &body.tag;
     let tag_info = &body.tag_info;
 
-    let tags_event = db
+    let mut tags_event = db
         .account_data
-        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .get::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
         .unwrap_or_else(|| ruma::events::tag::TagEvent {
             content: ruma::events::tag::TagEventContent {
                 tags: BTreeMap::new(),
@@ -3373,7 +3368,7 @@ pub fn delete_tag_route(
 
     let mut tags_event = db
         .account_data
-        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .get::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
         .unwrap_or_else(|| ruma::events::tag::TagEvent {
             content: ruma::events::tag::TagEventContent {
                 tags: BTreeMap::new(),
@@ -3410,7 +3405,7 @@ pub fn get_tags_route(
 
     let current_event = db
         .account_data
-        .find::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
+        .get::<ruma::events::tag::TagEvent>(Some(room_id), user_id, EventType::Tag)?
         .unwrap_or_else(|| ruma::events::tag::TagEvent {
             content: ruma::events::tag::TagEventContent {
                 tags: BTreeMap::new(),
