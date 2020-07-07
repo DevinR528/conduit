@@ -147,6 +147,12 @@ impl Rooms {
             })
     }
 
+    /// Returns the `count` of this pdu's id.
+    pub fn get_pdu_room(&self, pdu_id: &IVec) -> Result<RoomId> {
+        serde_json::from_slice(&pdu_id[0..pdu_id.len() - mem::size_of::<u64>() + 1])
+            .map_err(|_| Error::bad_database("Invalid PDU ID in database."))
+    }
+
     /// Returns the json of a pdu.
     pub fn get_pdu_json(&self, event_id: &EventId) -> Result<Option<serde_json::Value>> {
         self.eventid_pduid
@@ -572,7 +578,15 @@ impl Rooms {
 
         match event_type {
             EventType::RoomRedaction => {
-                if let Some(redact_id) = &redacts {
+                if let Some(Ok(Some(redact_pdu_id))) = &redacts.map(|id| self.get_pdu_id(&id)) {
+                    // TODO: move this to the other auth checks
+                    if self.get_pdu_room(redact_pdu_id)? != room_id {
+                        return Err(Error::BadRequest(
+                            ErrorKind::InvalidParam,
+                            "Can't redact PDU from other room.",
+                        ));
+                    }
+
                     // TODO: Reason
                     let _reason =
                         serde_json::from_value::<Raw<redaction::RedactionEventContent>>(content)
@@ -586,7 +600,7 @@ impl Rooms {
                             })?
                             .reason;
 
-                    self.redact_pdu(&redact_id)?;
+                    self.redact_pdu(redact_pdu_id)?;
                 }
             }
             _ => {}
@@ -720,20 +734,13 @@ impl Rooms {
     }
 
     /// Replace a PDU with the redacted form.
-    pub fn redact_pdu(&self, event_id: &EventId) -> Result<()> {
-        if let Some(pdu_id) = self.get_pdu_id(event_id)? {
-            let mut pdu = self
-                .get_pdu_from_id(&pdu_id)?
-                .ok_or_else(|| Error::bad_database("PDU ID points to invalid PDU."))?;
-            pdu.redact()?;
-            self.replace_pdu(&pdu_id, &pdu)?;
-            Ok(())
-        } else {
-            Err(Error::BadRequest(
-                ErrorKind::NotFound,
-                "Event ID does not exist.",
-            ))
-        }
+    pub fn redact_pdu(&self, pdu_id: &IVec) -> Result<()> {
+        let mut pdu = self
+            .get_pdu_from_id(pdu_id)?
+            .ok_or_else(|| Error::bad_database("PDU ID points to invalid PDU."))?;
+        pdu.redact()?;
+        self.replace_pdu(&pdu_id, &pdu)?;
+        Ok(())
     }
 
     /// Update current membership data.
