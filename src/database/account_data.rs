@@ -1,9 +1,10 @@
 use crate::{utils, Error, Result};
 use ruma::{
-    api::client::error::ErrorKind,
     events::{AnyEvent as EduEvent, EventJson, EventType},
     identifiers::{RoomId, UserId},
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use sled::IVec;
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -13,15 +14,16 @@ pub struct AccountData {
 
 impl AccountData {
     /// Places one event in the account data of the user and removes the previous entry.
-    pub fn update<T: ruma::events::Event>(
+    pub fn update<T: Serialize>(
         &self,
         room_id: Option<&RoomId>,
         user_id: &UserId,
+        event_type: EventType,
         event: &T,
         globals: &super::globals::Globals,
     ) -> Result<()> {
         let user_id_string = user_id.to_string();
-        let kind_string = event.event_type().to_string();
+        let kind_string = event_type.to_string();
 
         let mut prefix = room_id
             .map(|r| r.to_string())
@@ -34,7 +36,7 @@ impl AccountData {
 
         // Remove old entry
         if let Some((old, _)) = self
-            .find_events_of_type(room_id, user_id, &event.event_type())
+            .find_events_of_type(room_id, user_id, &event_type)
             .next()
         {
             self.roomuserdataid_accountdata.remove(old)?;
@@ -53,7 +55,7 @@ impl AccountData {
         Ok(())
     }
 
-    pub fn get<T: ruma::events::TryFromRaw>(
+    pub fn get<T: DeserializeOwned>(
         &self,
         room_id: Option<&RoomId>,
         user_id: &UserId,
@@ -137,7 +139,7 @@ impl AccountData {
             .filter(move |(k, _)| AccountData::key_matches_with_event_type(&kind, k))
     }
 
-    fn deserialize_to_type<T: ruma::events::TryFromRaw>(v: &IVec) -> Result<T> {
+    fn deserialize_to_type<T: DeserializeOwned>(v: &IVec) -> Result<T> {
         serde_json::from_slice::<EventJson<T>>(&v)
             .expect("from_slice always works")
             .deserialize()

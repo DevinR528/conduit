@@ -65,8 +65,7 @@ use ruma::{
             canonical_alias, guest_access, history_visibility, join_rules, member, name, redaction,
             topic,
         },
-        AnyBasicEvent, AnyEphemeralRoomEvent, AnyEvent, AnySyncEphemeralRoomEvent, EventJson,
-        EventType,
+        AnyEphemeralRoomEvent, AnyEvent, AnySyncEphemeralRoomEvent, EventJson, EventType,
     },
     identifiers::{RoomAliasId, RoomId, RoomVersionId, UserId},
 };
@@ -206,6 +205,7 @@ pub fn register_route(
     db.account_data.update(
         None,
         &user_id,
+        EventType::PushRules,
         &ruma::events::push_rules::PushRulesEvent {
             content: ruma::events::push_rules::PushRulesEventContent {
                 global: crate::push_rules::default_pushrules(&user_id),
@@ -554,13 +554,15 @@ pub fn set_global_account_data_route(
     let content = serde_json::from_str::<serde_json::Value>(body.data.get())
         .map_err(|_| Error::BadRequest(ErrorKind::BadJson, "Data is invalid."))?;
 
-    let custom_event = ruma::events::custom::CustomEvent {
-        content,
-        event_type: body.event_type.to_string(),
-    };
+    let event_type = body.event_type.to_string();
 
-    db.account_data
-        .update(None, user_id, &custom_event, &db.globals)?;
+    db.account_data.update(
+        None,
+        user_id,
+        EventType::Custom(event_type),
+        &content,
+        &db.globals,
+    )?;
 
     Ok(set_global_account_data::Response.into())
 }
@@ -579,11 +581,11 @@ pub fn get_global_account_data_route(
 
     let data = db
         .account_data
-        .get::<ruma::events::collections::only::Event>(
+        .get::<ruma::events::AnyBasicEvent>(
             None,
             user_id,
-            EventType::try_from(&body.event_type).expect("EventType::try_from can never fail")
-        )
+            EventType::try_from(&body.event_type).expect("EventType::try_from can never fail"),
+        )?
         .ok_or(Error::BadRequest(ErrorKind::NotFound, "Data not found."))?;
 
     Ok(get_global_account_data::Response {
@@ -1077,15 +1079,17 @@ pub fn set_read_marker_route(
 ) -> ConduitResult<set_read_marker::Response> {
     let user_id = body.user_id.as_ref().expect("user is authenticated");
 
+    let fully_read_event = ruma::events::fully_read::FullyReadEvent {
+        content: ruma::events::fully_read::FullyReadEventContent {
+            event_id: body.fully_read.clone(),
+        },
+        room_id: body.room_id.clone(),
+    };
     db.account_data.update(
         Some(&body.room_id),
         &user_id,
-        &ruma::events::fully_read::FullyReadEvent {
-            content: ruma::events::fully_read::FullyReadEventContent {
-                event_id: body.fully_read.clone(),
-            },
-            room_id: Some(body.room_id.clone()),
-        },
+        EventType::FullyRead,
+        &fully_read_event,
         &db.globals,
     )?;
 
@@ -3328,8 +3332,13 @@ pub fn update_tag_route(
         .tags
         .insert(tag.to_string(), tag_info.clone());
 
-    db.account_data
-        .update(Some(room_id), user_id, &tags_event, &db.globals)?;
+    db.account_data.update(
+        Some(room_id),
+        user_id,
+        EventType::Tag,
+        &tags_event,
+        &db.globals,
+    )?;
 
     Ok(create_tag::Response.into())
 }
@@ -3365,8 +3374,13 @@ pub fn delete_tag_route(
         });
     tags_event.content.tags.remove(tag);
 
-    db.account_data
-        .update(Some(room_id), user_id, &tags_event, &db.globals)?;
+    db.account_data.update(
+        Some(room_id),
+        user_id,
+        EventType::Tag,
+        &tags_event,
+        &db.globals,
+    )?;
 
     Ok(delete_tag::Response.into())
 }
@@ -3399,12 +3413,8 @@ pub fn get_tags_route(
             },
         });
 
-    // TODO: Fix response on ruma-events. Now the response gets serialized as:
-    /*
-    {"tags":{"tags":{"m.favourite":{"order":0.5}}}}
-     */
     Ok(get_tags::Response {
-        tags: EventJson::from(current_event.content),
+        tags: current_event.content.tags,
     }
     .into())
 }
