@@ -602,7 +602,7 @@ pub fn set_global_account_data_route(
     db.account_data.update(
         None,
         user_id,
-        EventType::Custom(event_type.clone()),
+        event_type.clone().into(),
         &BasicEvent {
             content: CustomEventContent {
                 event_type,
