@@ -9,7 +9,8 @@ use ruma::{
         },
     },
     events::{AnyToDeviceEvent, EventType},
-    DeviceId, Raw, UserId,
+    identifiers::{DeviceId, UserId},
+    Raw,
 };
 use std::{collections::BTreeMap, convert::TryFrom, mem, time::SystemTime};
 
@@ -177,7 +178,7 @@ impl Users {
 
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         self.userdeviceid_metadata.insert(
             userdeviceid,
@@ -200,7 +201,7 @@ impl Users {
     pub fn remove_device(&self, user_id: &UserId, device_id: &DeviceId) -> Result<()> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         // Remove tokens
         if let Some(old_token) = self.userdeviceid_token.remove(&userdeviceid)? {
@@ -246,7 +247,7 @@ impl Users {
     fn set_token(&self, user_id: &UserId, device_id: &DeviceId, token: &str) -> Result<()> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         // All devices have metadata
         assert!(self.userdeviceid_metadata.get(&userdeviceid)?.is_some());
@@ -273,7 +274,7 @@ impl Users {
     ) -> Result<()> {
         let mut key = user_id.to_string().as_bytes().to_vec();
         key.push(0xff);
-        key.extend_from_slice(device_id.as_bytes());
+        key.extend_from_slice(device_id.as_str().as_bytes());
 
         // All devices have metadata
         // Only existing devices should be able to call this.
@@ -305,7 +306,7 @@ impl Users {
     ) -> Result<Option<(AlgorithmAndDeviceId, OneTimeKey)>> {
         let mut prefix = user_id.to_string().as_bytes().to_vec();
         prefix.push(0xff);
-        prefix.extend_from_slice(device_id.as_bytes());
+        prefix.extend_from_slice(device_id.as_str().as_bytes());
         prefix.push(0xff);
         prefix.push(b'"'); // Annoying quotation mark
         prefix.extend_from_slice(key_algorithm.to_string().as_bytes());
@@ -340,7 +341,7 @@ impl Users {
     ) -> Result<BTreeMap<KeyAlgorithm, UInt>> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         let mut counts = BTreeMap::new();
 
@@ -375,7 +376,7 @@ impl Users {
     ) -> Result<()> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         self.keyid_key.insert(
             &userdeviceid,
@@ -556,7 +557,7 @@ impl Users {
     ) -> Result<Option<DeviceKeys>> {
         let mut key = user_id.to_string().as_bytes().to_vec();
         key.push(0xff);
-        key.extend_from_slice(device_id.as_bytes());
+        key.extend_from_slice(device_id.as_str().as_bytes());
 
         self.keyid_key.get(key)?.map_or(Ok(None), |bytes| {
             Ok(Some(serde_json::from_slice(&bytes).map_err(|_| {
@@ -643,7 +644,7 @@ impl Users {
     ) -> Result<()> {
         let mut key = target_user_id.to_string().as_bytes().to_vec();
         key.push(0xff);
-        key.extend_from_slice(target_device_id.as_bytes());
+        key.extend_from_slice(target_device_id.as_str().as_bytes());
         key.push(0xff);
         key.extend_from_slice(&globals.next_count()?.to_be_bytes());
 
@@ -669,7 +670,7 @@ impl Users {
 
         let mut prefix = user_id.to_string().as_bytes().to_vec();
         prefix.push(0xff);
-        prefix.extend_from_slice(device_id.as_bytes());
+        prefix.extend_from_slice(device_id.as_str().as_bytes());
         prefix.push(0xff);
 
         for value in self.todeviceid_events.scan_prefix(&prefix).values() {
@@ -690,7 +691,7 @@ impl Users {
     ) -> Result<()> {
         let mut prefix = user_id.to_string().as_bytes().to_vec();
         prefix.push(0xff);
-        prefix.extend_from_slice(device_id.as_bytes());
+        prefix.extend_from_slice(device_id.as_str().as_bytes());
         prefix.push(0xff);
 
         let mut last = prefix.clone();
@@ -725,7 +726,7 @@ impl Users {
     ) -> Result<()> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         // Only existing devices should be able to call this.
         assert!(self.userdeviceid_metadata.get(&userdeviceid)?.is_some());
@@ -748,7 +749,7 @@ impl Users {
     ) -> Result<Option<Device>> {
         let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
         userdeviceid.push(0xff);
-        userdeviceid.extend_from_slice(device_id.as_bytes());
+        userdeviceid.extend_from_slice(device_id.as_str().as_bytes());
 
         self.userdeviceid_metadata
             .get(&userdeviceid)?

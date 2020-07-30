@@ -5,7 +5,8 @@ use ruma::{
         pdu::EventHash, room::member::MemberEventContent, AnyRoomEvent, AnyStateEvent,
         AnyStrippedStateEvent, AnySyncRoomEvent, AnySyncStateEvent, EventType, StateEvent,
     },
-    EventId, Raw, RoomId, ServerName, UserId,
+    identifiers::{EventId, RoomId, ServerName, UserId},
+    Raw,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;

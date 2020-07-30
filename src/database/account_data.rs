@@ -1,7 +1,8 @@
 use crate::{utils, Error, Result};
 use ruma::{
     events::{AnyEvent as EduEvent, EventType},
-    Raw, RoomId, UserId,
+    identifiers::{RoomId, UserId},
+    Raw,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;

@@ -14,7 +14,8 @@ use ruma::{
         },
         EventType,
     },
-    EventId, Raw, RoomAliasId, RoomId, UserId,
+    identifiers::{EventId, RoomAliasId, RoomId, UserId},
+    Raw,
 };
 use sled::IVec;
 use std::{

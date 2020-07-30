@@ -73,7 +73,8 @@ use ruma::{
         },
         AnyEphemeralRoomEvent, AnyEvent, AnySyncEphemeralRoomEvent, EventType,
     },
-    Raw, RoomAliasId, RoomId, RoomVersionId, UserId,
+    identifiers::{RoomAliasId, RoomId, RoomVersionId, UserId},
+    Raw,
 };
 
 const GUEST_NAME_LENGTH: usize = 10;
@@ -1382,14 +1383,16 @@ pub fn create_room_route(
         user_id.clone(),
         EventType::RoomJoinRules,
         match preset {
-            create_room::RoomPreset::PublicChat => serde_json::to_value(
-                join_rules::JoinRulesEventContent::new(join_rules::JoinRule::Public),
-            )
-            .expect("event is valid, we just created it"),
+            create_room::RoomPreset::PublicChat => {
+                serde_json::to_value(join_rules::JoinRulesEventContent {
+                    join_rule: join_rules::JoinRule::Public,
+                })
+                .expect("event is valid, we just created it")
+            }
             // according to spec "invite" is the default
-            _ => serde_json::to_value(join_rules::JoinRulesEventContent::new(
-                join_rules::JoinRule::Invite,
-            ))
+            _ => serde_json::to_value(join_rules::JoinRulesEventContent {
+                join_rule: join_rules::JoinRule::Invite,
+            })
             .expect("event is valid, we just created it"),
         },
         None,

@@ -1,5 +1,5 @@
 use crate::{utils, Error, Result};
-use ruma::ServerName;
+use ruma::identifiers::ServerName;
 use std::convert::TryInto;
 
 pub const COUNTER: &str = "c";

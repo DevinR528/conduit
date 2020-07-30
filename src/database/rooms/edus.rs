@@ -1,7 +1,8 @@
 use crate::{utils, Error, Result};
 use ruma::{
     events::{AnyEvent as EduEvent, SyncEphemeralRoomEvent},
-    Raw, RoomId, UserId,
+    identifiers::{RoomId, UserId},
+    Raw,
 };
 use std::convert::TryFrom;
 
