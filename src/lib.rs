@@ -13,7 +13,7 @@ pub use rocket::Config;
 pub use ruma_wrapper::{ConduitResult, Ruma, RumaResponse};
 use std::ops::Deref;
 
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub struct State<'r, T: Send + Sync + 'static>(pub &'r T);
 
 impl<'r, T: Send + Sync + 'static> Deref for State<'r, T> {
     type Target = T;
