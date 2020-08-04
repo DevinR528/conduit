@@ -877,6 +877,106 @@ impl Rooms {
         Ok(())
     }
 
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
+    pub fn prev_events_matching_ids(
+        &self,
+        room_id: &RoomId,
+        ids: &[EventId],
+    ) -> Result<Vec<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        let mut pdus = vec![];
+        for (_, v) in self
+            .pduid_pdu
+            .range(current.as_slice()..)
+            .rev()
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+        {
+            let pdu = serde_json::from_slice::<PduEvent>(&v)
+                .map_err(|_| Error::bad_database("PDU in db is invalid."))?;
+
+            if ids.contains(&pdu.event_id) {
+                pdus.push(pdu)
+            }
+        }
+        Ok(pdus)
+    }
+
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
+    pub fn prev_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        self.pduid_pdu
+            .range(current.as_slice()..)
+            .rev()
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+            .take(10) // The 10 events prior to "new" event
+            .map(move |(_, v)| {
+                serde_json::from_slice::<PduEvent>(&v)
+                    .map_err(|_| Error::bad_database("PDU in db is invalid."))
+            })
+    }
+
+    /// The ten most recent event_ids, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    pub fn prev_event_ids(&self, room_id: &RoomId) -> Result<Vec<EventId>> {
+        Ok(self.get_pdu_leaves(room_id)?.into_iter().take(10).collect())
+    }
+
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    pub fn auth_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        self.pduid_pdu
+            .range(current.as_slice()..)
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+            .map(move |(_, v)| {
+                serde_json::from_slice::<PduEvent>(&v)
+                    .map_err(|_| Error::bad_database("PDU in db is invalid."))
+            })
+            .filter(|pdu| {
+                matches!(
+                    pdu.as_ref().map(|p| &p.kind),
+                    Ok(EventType::RoomCreate)
+                        | Ok(EventType::RoomMember)
+                        | Ok(EventType::RoomJoinRules)
+                        | Ok(EventType::RoomPowerLevels)
+                        | Ok(EventType::RoomThirdPartyInvite)
+                )
+            })
+    }
+
+    pub fn auth_event_ids(&self, room_id: &RoomId) -> impl Iterator<Item = Result<EventId>> {
+        self.auth_events(room_id).map(|pdu| pdu.map(|p| p.event_id))
+    }
+
     pub fn get_room_version(
         &self,
         room_id: &RoomId,

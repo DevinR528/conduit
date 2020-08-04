@@ -35,6 +35,17 @@ pub struct PduEvent {
 }
 
 impl PduEvent {
+    pub fn is_state(&self) -> bool {
+        matches!(
+            self.kind,
+            EventType::RoomCreate
+                | EventType::RoomMember
+                | EventType::RoomJoinRules
+                | EventType::RoomPowerLevels
+                | EventType::RoomThirdPartyInvite
+        )
+    }
+
     pub fn redact(&mut self) -> Result<()> {
         self.unsigned.clear();
         let allowed = match self.kind {

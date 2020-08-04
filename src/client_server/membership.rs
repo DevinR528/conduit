@@ -59,7 +59,7 @@ pub async fn join_room_by_id_route(
                 let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
                     .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
 
-                crate::federation::check_and_send_pdu_federation(&pdu)?;
+                crate::federation::check_and_send_pdu_federation(&db, &pdu)?;
             }
             sled::Event::Remove { key } => unimplemented!(),
         }
