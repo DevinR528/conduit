@@ -877,6 +877,24 @@ impl Rooms {
         Ok(())
     }
 
+    pub fn get_room_version(
+        &self,
+        room_id: &RoomId,
+    ) -> Result<Option<ruma::identifiers::RoomVersionId>> {
+        let content = self
+            .room_state_get(room_id, &EventType::RoomCreate, "")?
+            .map_or(Ok::<_, Error>(None), |pdu| {
+                Ok(Some(
+                    serde_json::from_value::<ruma::events::room::create::CreateEventContent>(
+                        pdu.content,
+                    )
+                    .map_err(|_| Error::bad_database("Alias in aliasid_alias is invalid."))?,
+                ))
+            });
+
+        Ok(content?.map(|c| c.room_version))
+    }
+
     pub fn id_from_alias(&self, alias: &RoomAliasId) -> Result<Option<RoomId>> {
         self.alias_roomid
             .get(alias.alias())?
