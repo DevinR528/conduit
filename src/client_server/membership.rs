@@ -53,15 +53,20 @@ pub async fn join_room_by_id_route(
         &db.account_data,
     )?;
 
-    if let Some(event) = fed_check_event.await {
-        match event {
-            sled::Event::Insert { key, value } => {
-                let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
-                    .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
+    let mut duration = std::time::Duration::from_secs(1);
+    let mut delay = tokio::time::delay_for(duration);
+    tokio::select! {
+        _ = &mut delay => {}
+        event = fed_check_event => if let Some(event) = event {
+            match event {
+                sled::Event::Insert { key, value } => {
+                    let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
+                        .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
 
-                crate::federation::check_and_send_pdu_federation(&db, &pdu)?;
+                    crate::federation::check_and_send_pdu_federation(&db, &pdu)?;
+                }
+                sled::Event::Remove { key } => unimplemented!(),
             }
-            sled::Event::Remove { key } => unimplemented!(),
         }
     }
 
