@@ -5,6 +5,7 @@ pub mod push_rules;
 mod client_server;
 mod database;
 mod error;
+mod federation;
 mod pdu;
 mod ruma_wrapper;
 //mod server_server;

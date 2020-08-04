@@ -21,7 +21,7 @@ use rocket::{get, post};
     feature = "conduit_bin",
     post("/_matrix/client/r0/rooms/<_>/join", data = "<body>")
 )]
-pub fn join_room_by_id_route(
+pub async fn join_room_by_id_route(
     db: State<'_, Database>,
     body: Ruma<join_room_by_id::Request>,
 ) -> ConduitResult<join_room_by_id::Response> {
@@ -37,6 +37,8 @@ pub fn join_room_by_id_route(
         third_party_invite: None,
     };
 
+    let fed_check_event = db.watch_federation(&body.room_id);
+
     db.rooms.append_pdu(
         PduBuilder {
             room_id: body.room_id.clone(),
@@ -51,6 +53,18 @@ pub fn join_room_by_id_route(
         &db.account_data,
     )?;
 
+    if let Some(event) = fed_check_event.await {
+        match event {
+            sled::Event::Insert { key, value } => {
+                let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
+                    .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
+
+                crate::federation::check_and_send_pdu_federation(&pdu)?;
+            }
+            sled::Event::Remove { key } => unimplemented!(),
+        }
+    }
+
     Ok(join_room_by_id::Response {
         room_id: body.room_id.clone(),
     }
@@ -61,7 +75,7 @@ pub fn join_room_by_id_route(
     feature = "conduit_bin",
     post("/_matrix/client/r0/join/<_>", data = "<body>")
 )]
-pub fn join_room_by_id_or_alias_route(
+pub async fn join_room_by_id_or_alias_route(
     db: State<'_, Database>,
     body: Ruma<join_room_by_id_or_alias::Request>,
 ) -> ConduitResult<join_room_by_id_or_alias::Response> {
@@ -83,7 +97,7 @@ pub fn join_room_by_id_or_alias_route(
     };
 
     Ok(join_room_by_id_or_alias::Response {
-        room_id: join_room_by_id_route(db, body)?.0.room_id,
+        room_id: join_room_by_id_route(db, body).await?.0.room_id,
     }
     .into())
 }

@@ -13,7 +13,7 @@ use std::fs::remove_dir_all;
 
 use futures::StreamExt;
 use rocket::{futures, Config};
-use ruma::{DeviceId, UserId};
+use ruma::{DeviceId, RoomId, UserId};
 
 pub struct Database {
     pub globals: globals::Globals,
@@ -207,5 +207,20 @@ impl Database {
 
         // Wait until one of them finds something
         futures.next().await;
+    }
+
+    pub async fn watch_federation(&self, room_id: &RoomId) -> Option<sled::Event> {
+        let roomid_prefix = room_id.as_str().as_bytes().to_vec();
+
+        let mut futures = futures::stream::FuturesUnordered::new();
+
+        futures.push(self.rooms.roomstateid_pdu.watch_prefix(&roomid_prefix));
+
+        futures.push(self.rooms.roomid_pduleaves.watch_prefix(&roomid_prefix));
+
+        // TODO does the above cover all the rooms this server knows about ??
+
+        // Return the newly added event and check it for federation sending
+        futures.next().await.unwrap()
     }
 }
