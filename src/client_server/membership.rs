@@ -53,6 +53,9 @@ pub async fn join_room_by_id_route(
         &db.account_data,
     )?;
 
+    // TODO instead of a delay this could be an `AtomicBool` passed to
+    // `check_and_send_pdu_federation` and it just polls the bool util true.
+    // The check_and_send fn would flip it on failure.
     let mut duration = std::time::Duration::from_secs(1);
     let mut delay = tokio::time::delay_for(duration);
     tokio::select! {

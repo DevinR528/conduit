@@ -109,6 +109,12 @@ impl Database {
                 userroomid_invited: db.open_tree("userroomid_invited")?,
                 roomuserid_invited: db.open_tree("roomuserid_invited")?,
                 userroomid_left: db.open_tree("userroomid_left")?,
+
+                state: rooms::RoomState {
+                    eventiduser_pdu: db.open_tree("eventiduser_pdu")?,
+                    stategroupid_context: db.open_tree("stategroupid_context")?,
+                    stategroupid_cachedstate: db.open_tree("")?,
+                },
             },
             account_data: account_data::AccountData {
                 roomuserdataid_accountdata: db.open_tree("roomuserdataid_accountdata")?,

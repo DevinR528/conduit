@@ -31,6 +31,7 @@ rust-argon2 = "0.8.2" # Used to hash passwords
 reqwest = "0.10.6" # Used to send requests
 thiserror = "1.0.19" # Used for conduit::Error type
 image = { version = "0.23.4", default-features = false, features = ["jpeg", "png", "gif"] } # Used to generate thumbnails for images
+state-res = { git = "https://github.com/ruma/state-res", version = "0.1.0", branch = "use-evmap" }
 
 [features]
 default = ["conduit_bin"]

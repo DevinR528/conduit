@@ -1,15 +1,21 @@
 mod edus;
+mod state;
 
 pub use edus::RoomEdus;
+pub use state::RoomState;
 
-use crate::{pdu::PduBuilder, utils, Error, PduEvent, Result};
+use crate::{
+    pdu::PduBuilder,
+    utils::{self, deserialize, to_db},
+    Error, PduEvent, Result,
+};
 use log::error;
 use ruma::{
     api::client::error::ErrorKind,
     events::{
         ignored_user_list,
         room::{
-            join_rules, member,
+            join_rules, member, message,
             power_levels::{self, PowerLevelsEventContent},
             redaction,
         },
@@ -26,9 +32,9 @@ use std::{
 
 pub struct Rooms {
     pub edus: edus::RoomEdus,
-    pub(super) pduid_pdu: sled::Tree, // PduId = RoomId + Count
-    pub(super) eventid_pduid: sled::Tree,
-    pub(super) roomid_pduleaves: sled::Tree,
+    pub(super) pduid_pdu: sled::Tree,     // PduId = RoomId + Count
+    pub(super) eventid_pduid: sled::Tree, // EventId -> PduId
+    pub(super) roomid_pduleaves: sled::Tree, // RoomId -> EventId
     pub(super) roomstateid_pdu: sled::Tree, // RoomStateId = Room + StateType + StateKey
 
     pub(super) alias_roomid: sled::Tree,
@@ -40,9 +46,123 @@ pub struct Rooms {
     pub(super) userroomid_invited: sled::Tree,
     pub(super) roomuserid_invited: sled::Tree,
     pub(super) userroomid_left: sled::Tree,
+
+    pub state: state::RoomState,
 }
 
 impl Rooms {
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
+    pub fn prev_events_matching_ids(
+        &self,
+        room_id: &RoomId,
+        ids: &[EventId],
+    ) -> Result<Vec<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        let mut pdus = vec![];
+        for (_, v) in self
+            .pduid_pdu
+            .range(current.as_slice()..)
+            .rev()
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+        {
+            let pdu = serde_json::from_slice::<PduEvent>(&v)
+                .map_err(|_| to_db("PDU in db is invalid."))?;
+
+            if ids.contains(&pdu.event_id) {
+                pdus.push(pdu)
+            }
+        }
+        Ok(pdus)
+    }
+
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
+    pub fn prev_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        self.pduid_pdu
+            .range(current.as_slice()..)
+            .rev()
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+            .take(10) // The 10 events prior to "new" event
+            .map(move |(_, v)| deserialize(&v))
+    }
+
+    /// The ten most recent event_ids, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    pub fn prev_event_ids(&self, room_id: &RoomId) -> Result<Vec<EventId>> {
+        Ok(self.get_pdu_leaves(room_id)?.into_iter().take(10).collect())
+    }
+
+    /// The ten most recent events, previous to a yet to be added event.
+    ///
+    /// When a new event is being added these are that events previous events.
+    pub fn auth_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
+        // Create the first part of the full pdu id
+        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        prefix.push(0xff);
+
+        let mut current = prefix.clone();
+        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
+
+        self.pduid_pdu
+            .range(current.as_slice()..)
+            .filter_map(|r| r.ok())
+            .take_while(move |(k, _)| k.starts_with(&prefix))
+            .map(move |(_, v)| deserialize::<PduEvent>(&v))
+            .filter(|pdu| {
+                matches!(
+                    pdu.as_ref().map(|p| &p.kind),
+                    Ok(EventType::RoomCreate)
+                        | Ok(EventType::RoomMember)
+                        | Ok(EventType::RoomJoinRules)
+                        | Ok(EventType::RoomPowerLevels)
+                        | Ok(EventType::RoomThirdPartyInvite)
+                )
+            })
+    }
+
+    pub fn auth_event_ids(&self, room_id: &RoomId) -> impl Iterator<Item = Result<EventId>> {
+        self.auth_events(room_id).map(|pdu| pdu.map(|p| p.event_id))
+    }
+
+    pub fn get_room_version(
+        &self,
+        room_id: &RoomId,
+    ) -> Result<Option<ruma::identifiers::RoomVersionId>> {
+        let content = self
+            .room_state_get(room_id, &EventType::RoomCreate, "")?
+            .map_or(Ok::<_, Error>(None), |pdu| {
+                Ok(Some(
+                    serde_json::from_value::<ruma::events::room::create::CreateEventContent>(
+                        pdu.content,
+                    )
+                    .map_err(|_| Error::bad_database("Alias in aliasid_alias is invalid."))?,
+                ))
+            });
+
+        Ok(content?.map(|c| c.room_version))
+    }
+
     /// Checks if a room exists.
     pub fn exists(&self, room_id: &RoomId) -> Result<bool> {
         let mut prefix = room_id.to_string().as_bytes().to_vec();
@@ -616,6 +736,41 @@ impl Rooms {
                     )?;
                 }
             }
+            EventType::RoomMessage => {
+                let message = serde_json::from_value::<Raw<message::MessageEventContent>>(content)
+                    .expect("Raw::from_value always works.")
+                    .deserialize()
+                    .map_err(|_| {
+                        Error::BadRequest(
+                            ErrorKind::InvalidParam,
+                            "Invalid redaction event content.",
+                        )
+                    })?;
+
+                // Check for relationships, we have to keep track of them
+                match message {
+                    message::MessageEventContent::Text(message::TextMessageEventContent {
+                        relates_to: Some(rel_to),
+                        ..
+                    }) => {
+                        let mut key = rel_to.in_reply_to.event_id.as_str().as_bytes().to_vec();
+                        key.push(0xff);
+                        key.extend_from_slice(pdu.sender.as_str().as_bytes());
+
+                        // Don't overwrite existing relationships, a user can only react once to an
+                        // event.
+                        if !self.state.eventiduser_pdu.contains_key(&key)? {
+                            self.state
+                                .eventiduser_pdu
+                                .insert(key, &*pdu_json.to_string())?;
+                        }
+                    }
+                    message::MessageEventContent::Notice(_content) => {
+                        // TODO handle more
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
         self.edus.room_read_set(&room_id, &sender, index)?;
@@ -875,124 +1030,6 @@ impl Rooms {
         }
 
         Ok(())
-    }
-
-    /// The ten most recent events, previous to a yet to be added event.
-    ///
-    /// When a new event is being added these are that events previous events.
-    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
-    pub fn prev_events_matching_ids(
-        &self,
-        room_id: &RoomId,
-        ids: &[EventId],
-    ) -> Result<Vec<PduEvent>> {
-        // Create the first part of the full pdu id
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
-        prefix.push(0xff);
-
-        let mut current = prefix.clone();
-        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
-
-        let mut pdus = vec![];
-        for (_, v) in self
-            .pduid_pdu
-            .range(current.as_slice()..)
-            .rev()
-            .filter_map(|r| r.ok())
-            .take_while(move |(k, _)| k.starts_with(&prefix))
-        {
-            let pdu = serde_json::from_slice::<PduEvent>(&v)
-                .map_err(|_| Error::bad_database("PDU in db is invalid."))?;
-
-            if ids.contains(&pdu.event_id) {
-                pdus.push(pdu)
-            }
-        }
-        Ok(pdus)
-    }
-
-    /// The ten most recent events, previous to a yet to be added event.
-    ///
-    /// When a new event is being added these are that events previous events.
-    /// Note this returns the PDUs most recent -> oldest based on the `Count` key.
-    pub fn prev_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
-        // Create the first part of the full pdu id
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
-        prefix.push(0xff);
-
-        let mut current = prefix.clone();
-        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
-
-        self.pduid_pdu
-            .range(current.as_slice()..)
-            .rev()
-            .filter_map(|r| r.ok())
-            .take_while(move |(k, _)| k.starts_with(&prefix))
-            .take(10) // The 10 events prior to "new" event
-            .map(move |(_, v)| {
-                serde_json::from_slice::<PduEvent>(&v)
-                    .map_err(|_| Error::bad_database("PDU in db is invalid."))
-            })
-    }
-
-    /// The ten most recent event_ids, previous to a yet to be added event.
-    ///
-    /// When a new event is being added these are that events previous events.
-    pub fn prev_event_ids(&self, room_id: &RoomId) -> Result<Vec<EventId>> {
-        Ok(self.get_pdu_leaves(room_id)?.into_iter().take(10).collect())
-    }
-
-    /// The ten most recent events, previous to a yet to be added event.
-    ///
-    /// When a new event is being added these are that events previous events.
-    pub fn auth_events(&self, room_id: &RoomId) -> impl Iterator<Item = Result<PduEvent>> {
-        // Create the first part of the full pdu id
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
-        prefix.push(0xff);
-
-        let mut current = prefix.clone();
-        current.extend_from_slice(&1_u64.to_be_bytes()); // TODO do we skip the base event ??
-
-        self.pduid_pdu
-            .range(current.as_slice()..)
-            .filter_map(|r| r.ok())
-            .take_while(move |(k, _)| k.starts_with(&prefix))
-            .map(move |(_, v)| {
-                serde_json::from_slice::<PduEvent>(&v)
-                    .map_err(|_| Error::bad_database("PDU in db is invalid."))
-            })
-            .filter(|pdu| {
-                matches!(
-                    pdu.as_ref().map(|p| &p.kind),
-                    Ok(EventType::RoomCreate)
-                        | Ok(EventType::RoomMember)
-                        | Ok(EventType::RoomJoinRules)
-                        | Ok(EventType::RoomPowerLevels)
-                        | Ok(EventType::RoomThirdPartyInvite)
-                )
-            })
-    }
-
-    pub fn auth_event_ids(&self, room_id: &RoomId) -> impl Iterator<Item = Result<EventId>> {
-        self.auth_events(room_id).map(|pdu| pdu.map(|p| p.event_id))
-    }
-
-    pub fn get_room_version(
-        &self,
-        room_id: &RoomId,
-    ) -> Result<Option<ruma::identifiers::RoomVersionId>> {
-        let content = self
-            .room_state_get(room_id, &EventType::RoomCreate, "")?
-            .map_or(Ok::<_, Error>(None), |pdu| {
-                Ok(Some(
-                    serde_json::from_value::<ruma::events::room::create::CreateEventContent>(
-                        pdu.content,
-                    )
-                    .map_err(|_| Error::bad_database("Alias in aliasid_alias is invalid."))?,
-                ))
-            });
-
-        Ok(content?.map(|c| c.room_version))
     }
 
     pub fn id_from_alias(&self, alias: &RoomAliasId) -> Result<Option<RoomId>> {
