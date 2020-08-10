@@ -122,7 +122,7 @@ pub struct RoomState {
     ///
     /// This determines the next state group Id key for use in state resolution and
     /// the key found in the DB.
-    current_state_id: AtomicU64,
+    pub(in super::super) current_state_id: AtomicU64,
 
     /// related EventId + Sender -> Pdu (the event that relates to "related EventId").
     // example: ^^         ^^                       ^^
@@ -189,7 +189,7 @@ impl RoomState {
             let state_id = self.roomideventid_eventnumid.get(prefix)?;
 
             if let Some(state_group_id) = state_id {
-                if let Some(range) = self.stategroupid_eventnumidrange.get(state_group_id)? {
+                if let Some(range) = self.stategroupid_eventnumidrange.get(&state_group_id)? {
                     state_groups.insert(
                         utils::u64_from_bytes(&state_group_id)
                             .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?,
@@ -214,21 +214,21 @@ impl RoomState {
         self.eventnumid_eventtype
             .range(from..to)
             .zip(self.eventnumid_statekey.range(from..to))
-            .filter_map(|(ty, key)| Some((&ty.ok()?.1, &key.ok()?.1)))
+            .filter_map(|(ty, key)| Some((ty.ok()?.1, key.ok()?.1)))
             .zip(self.eventnumid_eventid.range(from..to))
-            .filter_map(|(key, id)| Some((key, &id.ok()?.1)))
+            .filter_map(|(key, id)| Some((key, id.ok()?.1)))
             .map(|((ty, key), id)| {
-                let ev_type: EventType = utils::string_from_bytes(ty)
+                let ev_type: EventType = utils::string_from_bytes(&ty)
                     .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?
                     .into();
                 Ok((
                     (
                         ev_type,
                         // TODO this needs to be Option<state_key> saved in the DB
-                        utils::string_from_bytes(key).ok(),
+                        utils::string_from_bytes(&key).ok(),
                     ),
                     EventId::try_from(
-                        utils::string_from_bytes(id)
+                        utils::string_from_bytes(&id)
                             .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?,
                     )
                     .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?,
@@ -262,8 +262,7 @@ impl RoomState {
         }) {
             self.stategroupid_eventnumidrange
                 .iter()
-                .skip(idx - 2)
-                .next()
+                .nth(idx - 1)
                 .map(|pair| {
                     let k = pair.ok()?.1;
                     utils::u64_from_bytes(&k)

@@ -214,7 +214,7 @@ pub fn resolve_state_group_for_events(
 ) -> Result<StateCacheEntry> {
     // The state of the room at each previous event
     // in the forum of: state group id -> StateMap<EventId>
-    let state_group_ids = db
+    let mut state_group_ids = db
         .rooms
         .state
         .get_state_group_ids(room_id, prev_event_ids)?;
@@ -223,8 +223,8 @@ pub fn resolve_state_group_for_events(
         return Ok(StateCacheEntry::new(StateMap::new(), None, None, None));
     } else if state_group_ids.len() == 1 {
         // Unless rust's b-tree is broken this will never fail
-        let k = state_group_ids.keys().next().unwrap();
-        let (name, state_map) = state_group_ids.remove_entry(k).unwrap();
+        let k = *state_group_ids.keys().next().unwrap();
+        let (name, state_map) = state_group_ids.remove_entry(&k).unwrap();
 
         // build the delta between this state group and the previous
         let (prev_group, delta_ids) = get_state_group_delta(db, name)?;
