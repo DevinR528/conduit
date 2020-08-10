@@ -10,92 +10,10 @@ use ruma::{
     EventId, Raw, RoomId, UserId,
 };
 
-use crate::{Database, Error, PduEvent, Result};
-
-/// A mapping of (event_type, state_key) -> `T`, usually `EventId` or `Pdu`.
-pub type StateMap<T> = BTreeMap<(EventType, Option<String>), T>;
-
-pub enum StateId {
-    Cached(String),
-    Group(String),
-}
-
-/// TODO
-pub enum AppService {
-    A,
-    B,
-    C,
-}
-
-pub struct EventContext {
-    /// The ID of the state group for this event. Note that state events
-    /// are persisted with a state group which includes the new event, so this is
-    /// effectively the state *after* the event in question.
-    // TODO this is a unique ID give it a type ?
-    state_group: Option<String>,
-
-    /// The state group id of the previous event. If this is not a state event it will
-    /// be the same as `state_group`.
-    pub state_group_before_event: Option<String>,
-
-    /// The previous state group. Not necessarily related to `prev_group`, or `prev_state_ids`.
-    pub prev_group: Option<String>,
-
-    /// The difference between `prev_group` and `state_group`, if present.
-    pub delta: Option<StateMap<EventId>>,
-
-    /// If this event is sent by a (local) app-service.
-    pub app_service: Option<AppService>,
-
-    /// The room `StateMap` including the event to be sent.
-    current_state_ids: StateMap<EventId>,
-
-    /// The room `StateMap`, excluding the event to be sent. This would be the state
-    /// represented by `state_group_before_event`.
-    prev_state_ids: StateMap<EventId>,
-}
-
-pub struct StateCacheEntry {
-    pub state: StateMap<EventId>,
-
-    /// The ID of the state group if one and only one is involved.
-    /// [synapse] then says "otherwise, None otherwise?" what does this mean
-    state_group: Option<String>,
-
-    /// The unique ID of this resolved state group. [synapse] This may be a state_group id
-    /// or a cached state entry but the two should not be confused.
-    pub state_id: StateId,
-
-    /// The ID of the previous resolved state group.
-    pub prev_group: Option<String>,
-
-    pub delta_ids: Option<StateMap<EventId>>,
-}
-
-impl StateCacheEntry {
-    pub fn new(
-        state: StateMap<EventId>,
-        state_group: Option<String>,
-        prev_group: Option<String>,
-        delta_ids: Option<StateMap<EventId>>,
-    ) -> Self {
-        Self {
-            state,
-            state_id: if let Some(id) = state_group.as_ref() {
-                StateId::Group(id.clone())
-            } else {
-                StateId::Cached(gen_state_id())
-            },
-            state_group,
-            prev_group,
-            delta_ids,
-        }
-    }
-}
-
-fn gen_state_id() -> String {
-    crate::utils::random_string(10)
-}
+use crate::{
+    database::rooms::state::{EventContext, StateCacheEntry, StateId, StateMap},
+    Database, Error, PduEvent, Result,
+};
 
 fn pdu_to_state_map(pdu: &PduEvent) -> ((EventType, Option<String>), EventId) {
     (
@@ -257,10 +175,10 @@ fn compute_event_context(
     // Now that that's out of the way compute the past state
     //
 
-    let mut state_ids_before;
-    let mut state_group_before;
-    let mut state_group_before_event_prev_group;
-    let mut deltas_to_state_group;
+    let state_ids_before;
+    let state_group_before;
+    let state_group_before_event_prev_group;
+    let deltas_to_state_group;
     if let Some(old) = old_state {
         state_ids_before = old
             .iter()
@@ -271,7 +189,7 @@ fn compute_event_context(
         state_group_before_event_prev_group = None;
         deltas_to_state_group = None;
     } else {
-        let entry = resolve_state_group_for_events(&pdu.event_id, &pdu.prev_events)?;
+        let entry = resolve_state_group_for_events(db, &pdu.room_id, &pdu.prev_events)?;
 
         state_ids_before = entry.state;
 
@@ -290,8 +208,40 @@ fn compute_event_context(
 }
 
 pub fn resolve_state_group_for_events(
-    event_id: &EventId,
-    event_ids: &[EventId],
+    db: &Database,
+    room_id: &RoomId,
+    prev_event_ids: &[EventId],
 ) -> Result<StateCacheEntry> {
+    let state_group_ids = db
+        .rooms
+        .state
+        .get_state_group_ids(room_id, prev_event_ids)?;
+
+    if state_group_ids.is_empty() {
+        return Ok(StateCacheEntry::new(StateMap::new(), None, None, None));
+    } else if state_group_ids.len() == 1 {
+    }
+    // Either a state_block ID or a `StateCacheEntry` ID
+    let state_id = db.rooms.state.current_state_id().ok();
+    //
+    let state = db.rooms.state.current_state();
+    let state_group = db.rooms.state.new_state_group_id().ok();
+
+    let (prev_group, delta_ids) = get_state_group_delta(db);
+
+    Ok(StateCacheEntry {
+        state,
+        state_group,
+        state_id,
+        prev_group,
+        delta_ids,
+    })
+}
+
+pub fn resolve_state_groups(db: &Database) -> Result<StateCacheEntry> {
+    todo!()
+}
+
+pub fn get_state_group_delta(db: &Database) -> (Option<String>, Option<StateMap<EventId>>) {
     todo!()
 }

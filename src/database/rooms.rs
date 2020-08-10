@@ -1,5 +1,5 @@
 mod edus;
-mod state;
+pub mod state;
 
 pub use edus::RoomEdus;
 pub use state::RoomState;

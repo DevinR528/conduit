@@ -112,8 +112,15 @@ impl Database {
 
                 state: rooms::RoomState {
                     eventiduser_pdu: db.open_tree("eventiduser_pdu")?,
-                    stategroupid_context: db.open_tree("stategroupid_context")?,
-                    stategroupid_cachedstate: db.open_tree("")?,
+                    eventnumid_pdu: db.open_tree("eventnumid_pdu")?,
+
+                    eventnumid_eventid: db.open_tree("eventnumid_eventid")?,
+                    eventnumid_eventtype: db.open_tree("eventnumid_eventtype")?,
+                    eventnumid_statekey: db.open_tree("eventnumid_statekey")?,
+
+                    eventnumid_snapshotid: db.open_tree("eventnumid_snapshotid")?,
+                    snapshotnumid_stateblockid: db.open_tree("snapshotnumid_stateblockid")?,
+                    stateblockid_eventids: db.open_tree("stateblockid_eventids")?,
                 },
             },
             account_data: account_data::AccountData {

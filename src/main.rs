@@ -11,7 +11,7 @@ mod ruma_wrapper;
 //mod server_server;
 mod utils;
 
-pub use database::Database;
+pub use database::{rooms::state, Database};
 pub use error::{Error, Result};
 pub use pdu::PduEvent;
 pub use rocket::State;
