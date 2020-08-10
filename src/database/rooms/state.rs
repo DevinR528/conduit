@@ -12,16 +12,21 @@ use std::{
     collections::{BTreeMap, HashMap},
     convert::{TryFrom, TryInto},
     mem,
+    sync::atomic::{AtomicU64, Ordering},
 };
 
 /// A mapping of (event_type, state_key) -> `T`, usually `EventId` or `Pdu`.
 pub type StateMap<T> = BTreeMap<(EventType, Option<String>), T>;
 
-pub type StateGroupId = u64;
+/// The unique sequential numbering of each state group.
+///
+/// This is assigned when a state group is added to the database.
+pub type StateId = u64;
 
-pub enum StateId {
+pub enum StateGroupId {
+    /// This is an optimization done in synapse ignore for now.
     Cached(String),
-    Group(String),
+    Group(StateId),
 }
 
 /// TODO
@@ -62,36 +67,44 @@ pub struct EventContext {
     pub(crate) prev_state_ids: StateMap<EventId>,
 }
 
+/// This is used to pass around state to the state resolution algorithms.
+///
+/// In the future this can be kept in a cache and assigned a `StateId::Cache` id.
 pub struct StateCacheEntry {
+    /// The current state of the room before the event we are resolving is added.
+    ///
+    /// Once the event is resolved and added to the DB a new `StateCacheEntry` is
+    /// created for that event.
     pub state: StateMap<EventId>,
 
     /// The ID of the state group if one and only one is involved.
     /// [synapse] then says "otherwise, None otherwise?" what does this mean
-    pub(crate) state_group: Option<String>,
+    pub(crate) state_group: Option<StateId>,
 
     /// The unique ID of this resolved state group. [synapse] This may be a state_group id
     /// or a cached state entry but the two should not be confused.
-    pub state_id: StateId,
+    pub state_id: StateGroupId,
 
     /// The ID of the previous resolved state group.
-    pub prev_group: Option<String>,
+    pub prev_group: Option<StateId>,
 
+    ///
     pub delta_ids: Option<StateMap<EventId>>,
 }
 
 impl StateCacheEntry {
     pub fn new(
         state: StateMap<EventId>,
-        state_group: Option<String>,
-        prev_group: Option<String>,
+        state_group: Option<StateId>,
+        prev_group: Option<StateId>,
         delta_ids: Option<StateMap<EventId>>,
     ) -> Self {
         Self {
             state,
             state_id: if let Some(id) = state_group.as_ref() {
-                StateId::Group(id.clone())
+                StateGroupId::Group(id.clone())
             } else {
-                StateId::Cached(gen_state_id())
+                StateGroupId::Cached(gen_state_id())
             },
             state_group,
             prev_group,
@@ -105,6 +118,12 @@ fn gen_state_id() -> String {
 }
 
 pub struct RoomState {
+    /// The continuing count of events.
+    ///
+    /// This determines the next state group Id key for use in state resolution and
+    /// the key found in the DB.
+    current_state_id: AtomicU64,
+
     /// related EventId + Sender -> Pdu (the event that relates to "related EventId").
     // example: ^^         ^^                       ^^
     /// A message event   the sender of this Pdu    Pdu of a emoji reaction
@@ -122,13 +141,6 @@ pub struct RoomState {
     pub(in super::super) eventnumid_eventtype: sled::Tree,
     /// eventid -> state_key
     pub(in super::super) eventnumid_statekey: sled::Tree,
-
-    //
-    /// Numeric event ID -> Numeric id of a state snapshot
-    pub(in super::super) eventnumid_snapshotid: sled::Tree,
-
-    /// Numeric snapshot ID -> Numeric state group ID
-    pub(in super::super) snapshotnumid_stategroupid: sled::Tree,
 
     /// Numeric state group ID -> range of eventnumid's
     ///
@@ -165,7 +177,7 @@ impl RoomState {
         &self,
         room_id: &RoomId,
         event_ids: &[EventId],
-    ) -> Result<BTreeMap<StateGroupId, StateMap<EventId>>> {
+    ) -> Result<BTreeMap<StateId, StateMap<EventId>>> {
         let mut prefix = room_id.as_str().as_bytes().to_vec();
         prefix.push(0xff);
 
@@ -212,7 +224,7 @@ impl RoomState {
                 Ok((
                     (
                         ev_type,
-                        // TODO this needs to be Option<state_key> save in the DB
+                        // TODO this needs to be Option<state_key> saved in the DB
                         utils::string_from_bytes(key).ok(),
                     ),
                     EventId::try_from(
@@ -225,34 +237,65 @@ impl RoomState {
             .collect::<Result<StateMap<_>>>()
     }
 
-    ///
-    pub fn current_state_id(&self) -> Result<StateMap<EventId>> {
-        let from = &range[..mem::size_of::<u64>()];
-        let to = &range[mem::size_of::<u64>()..];
-
-        self.eventnumid_eventtype
-            .range(from..to)
-            .zip(self.eventnumid_statekey.range(from..to))
-            .filter_map(|(ty, key)| Some((&ty.ok()?.1, &key.ok()?.1)))
-            .zip(self.eventnumid_eventid.range(from..to))
-            .filter_map(|(key, id)| Some((key, &id.ok()?.1)))
-            .map(|((ty, key), id)| {
-                let ev_type: EventType = utils::string_from_bytes(ty)
-                    .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?
-                    .into();
-                Ok((
-                    (
-                        ev_type,
-                        // TODO this needs to be Option<state_key> save in the DB
-                        utils::string_from_bytes(key).ok(),
-                    ),
-                    EventId::try_from(
-                        utils::string_from_bytes(id)
-                            .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?,
-                    )
-                    .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))?,
-                ))
+    /// Fetches the as known state group ID.
+    pub fn current_state_id(&self) -> Option<StateId> {
+        self.stategroupid_eventnumidrange
+            .iter()
+            .next_back()
+            .map(|pair| {
+                let k = pair.ok()?.0;
+                utils::u64_from_bytes(&k)
+                    .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))
+                    .ok()
             })
-            .collect::<Result<StateMap<_>>>()
+            .flatten()
+    }
+
+    /// Fetches the previous state group ID to `current`.
+    pub fn prev_state_id(&self, current: StateId) -> Option<StateId> {
+        if let Some(idx) = self.stategroupid_eventnumidrange.iter().position(|k| {
+            if let Some(key) = k.ok().and_then(|(k, _)| utils::u64_from_bytes(&k).ok()) {
+                key == current
+            } else {
+                false
+            }
+        }) {
+            self.stategroupid_eventnumidrange
+                .iter()
+                .skip(idx - 2)
+                .next()
+                .map(|pair| {
+                    let k = pair.ok()?.1;
+                    utils::u64_from_bytes(&k)
+                        .map_err(|_| utils::to_db("Invalid bytes to u64 in db."))
+                        .ok()
+                })
+                .flatten()
+        } else {
+            None
+        }
+    }
+
+    ///
+    pub fn current_state(&self) -> Result<StateMap<EventId>> {
+        self.stategroupid_eventnumidrange
+            .iter()
+            .next_back()
+            .map_or(Err(utils::to_db("fail")), |pair| {
+                self.statemap_from_numid_range(pair?.1)
+            })
+    }
+
+    /// Calling this increments the state group ID
+    // TODO !! don't let anyone call this but the method appending to the DB
+    pub fn new_state_group_id(&self) -> Result<StateId> {
+        // TODO does this return the old num or the new?
+        let next = self.current_state_id.fetch_add(1, Ordering::SeqCst);
+        Ok(next)
+    }
+
+    ///
+    pub fn state_group_delta(&self) -> Result<Option<StateMap<EventId>>> {
+        todo!()
     }
 }

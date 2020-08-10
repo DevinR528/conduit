@@ -118,9 +118,10 @@ impl Database {
                     eventnumid_eventtype: db.open_tree("eventnumid_eventtype")?,
                     eventnumid_statekey: db.open_tree("eventnumid_statekey")?,
 
-                    eventnumid_snapshotid: db.open_tree("eventnumid_snapshotid")?,
-                    snapshotnumid_stateblockid: db.open_tree("snapshotnumid_stateblockid")?,
-                    stateblockid_eventids: db.open_tree("stateblockid_eventids")?,
+                    roomideventid_eventnumid: db.open_tree("roomideventid_eventnumid")?,
+                    stategroupid_eventnumidrange: db.open_tree("stategroupid_eventnumidrange")?,
+                    // TODO is it ok to have a non Tree here?
+                    current_state_id: std::sync::atomic::AtomicU64::default(),
                 },
             },
             account_data: account_data::AccountData {

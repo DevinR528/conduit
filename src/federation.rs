@@ -11,8 +11,8 @@ use ruma::{
 };
 
 use crate::{
-    database::rooms::state::{EventContext, StateCacheEntry, StateId, StateMap},
-    Database, Error, PduEvent, Result,
+    database::rooms::state::{EventContext, StateCacheEntry, StateGroupId, StateId, StateMap},
+    utils, Database, Error, PduEvent, Result,
 };
 
 fn pdu_to_state_map(pdu: &PduEvent) -> ((EventType, Option<String>), EventId) {
@@ -212,6 +212,8 @@ pub fn resolve_state_group_for_events(
     room_id: &RoomId,
     prev_event_ids: &[EventId],
 ) -> Result<StateCacheEntry> {
+    // The state of the room at each previous event
+    // in the forum of: state group id -> StateMap<EventId>
     let state_group_ids = db
         .rooms
         .state
@@ -220,19 +222,37 @@ pub fn resolve_state_group_for_events(
     if state_group_ids.is_empty() {
         return Ok(StateCacheEntry::new(StateMap::new(), None, None, None));
     } else if state_group_ids.len() == 1 {
+        // Unless rust's b-tree is broken this will never fail
+        let k = state_group_ids.keys().next().unwrap();
+        let (name, state_map) = state_group_ids.remove_entry(k).unwrap();
+
+        // build the delta between this state group and the previous
+        let (prev_group, delta_ids) = get_state_group_delta(db, name)?;
+
+        return Ok(StateCacheEntry {
+            state_id: StateGroupId::Group(name),
+            state: state_map,
+            state_group: Some(name),
+            prev_group,
+            delta_ids,
+        });
     }
-    // Either a state_block ID or a `StateCacheEntry` ID
-    let state_id = db.rooms.state.current_state_id().ok();
-    //
-    let state = db.rooms.state.current_state();
+    // Either a state group ID or a `StateCacheEntry` ID
+    let state_id = db
+        .rooms
+        .state
+        .current_state_id()
+        .ok_or(utils::to_db("No state group ID found in db."))?;
+    // The state
+    let state = db.rooms.state.current_state()?;
     let state_group = db.rooms.state.new_state_group_id().ok();
 
-    let (prev_group, delta_ids) = get_state_group_delta(db);
+    let (prev_group, delta_ids) = get_state_group_delta(db, state_id)?;
 
     Ok(StateCacheEntry {
         state,
         state_group,
-        state_id,
+        state_id: StateGroupId::Group(state_id),
         prev_group,
         delta_ids,
     })
@@ -242,6 +262,9 @@ pub fn resolve_state_groups(db: &Database) -> Result<StateCacheEntry> {
     todo!()
 }
 
-pub fn get_state_group_delta(db: &Database) -> (Option<String>, Option<StateMap<EventId>>) {
-    todo!()
+pub fn get_state_group_delta(
+    db: &Database,
+    state_id: StateId,
+) -> Result<(Option<StateId>, Option<StateMap<EventId>>)> {
+    Ok((db.rooms.state.prev_state_id(state_id), todo!()))
 }
