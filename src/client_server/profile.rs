@@ -64,6 +64,7 @@ pub fn set_displayname_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
 
         // Presence update
@@ -167,6 +168,7 @@ pub fn set_avatar_url_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
 
         // Presence update

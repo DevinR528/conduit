@@ -18,6 +18,9 @@ use std::{
 /// A mapping of (event_type, state_key) -> `T`, usually `EventId` or `Pdu`.
 pub type StateMap<T> = BTreeMap<(EventType, Option<String>), T>;
 
+/// A mapping of `EventId` to `T`, usually an event/PDU.
+pub type EventMap<T> = BTreeMap<EventId, T>;
+
 /// The unique sequential numbering of each state group.
 ///
 /// This is assigned when a state group is added to the database.
@@ -171,6 +174,17 @@ impl RoomState {
             })
     }
 
+    pub fn get_statemap(&self, state_id: StateId) -> Result<StateMap<EventId>> {
+        let mut prefix = state_id.to_be_bytes().to_vec();
+        prefix.push(0xff);
+
+        self.stategroupid_eventnumidrange
+            .get(&prefix)?
+            .map_or(Err(utils::to_db("Invalid state group id used.")), |range| {
+                self.statemap_from_numid_range(range)
+            })
+    }
+
     /// Returns a mapping of `StateGroupId` to StateMap<EventId>.
     /// The state at `event_ids` represents the state at that point in time.
     pub fn get_state_group_ids(
@@ -262,7 +276,7 @@ impl RoomState {
         }) {
             self.stategroupid_eventnumidrange
                 .iter()
-                .nth(idx - 1)
+                .nth(idx - 1) // the state group id before `current`
                 .map(|pair| {
                     let k = pair.ok()?.1;
                     utils::u64_from_bytes(&k)
@@ -288,13 +302,37 @@ impl RoomState {
     /// Calling this increments the state group ID
     // TODO !! don't let anyone call this but the method appending to the DB
     pub fn new_state_group_id(&self) -> Result<StateId> {
-        // TODO does this return the old num or the new?
+        // This is the previous value (as in not + 1)
         let next = self.current_state_id.fetch_add(1, Ordering::SeqCst);
-        Ok(next)
+        Ok(next + 1)
+    }
+}
+
+impl state_res::StateStore for RoomState {
+    fn get_event(&self, event_id: &EventId) -> std::result::Result<state_res::StateEvent, String> {
+        todo!()
     }
 
-    ///
-    pub fn state_group_delta(&self) -> Result<Option<StateMap<EventId>>> {
+    fn get_events(
+        &self,
+        event_ids: &[EventId],
+    ) -> std::result::Result<Vec<state_res::StateEvent>, String> {
+        todo!()
+    }
+
+    fn auth_chain_diff(
+        &self,
+        room_id: &RoomId,
+        event_id: Vec<Vec<EventId>>,
+    ) -> std::result::Result<Vec<EventId>, String> {
+        todo!()
+    }
+
+    fn auth_event_ids(
+        &self,
+        room_id: &RoomId,
+        event_ids: &[EventId],
+    ) -> std::result::Result<Vec<EventId>, String> {
         todo!()
     }
 }

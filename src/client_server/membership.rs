@@ -51,27 +51,29 @@ pub async fn join_room_by_id_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // TODO instead of a delay this could be an `AtomicBool` passed to
     // `check_and_send_pdu_federation` and it just polls the bool util true.
     // The check_and_send fn would flip it on failure.
-    let mut duration = std::time::Duration::from_secs(1);
-    let mut delay = tokio::time::delay_for(duration);
-    tokio::select! {
-        _ = &mut delay => {}
-        event = fed_check_event => if let Some(event) = event {
-            match event {
-                sled::Event::Insert { key, value } => {
-                    let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
-                        .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
 
-                    crate::federation::check_and_send_pdu_federation(&db, &pdu)?;
-                }
-                sled::Event::Remove { key } => unimplemented!(),
-            }
-        }
-    }
+    // let mut duration = std::time::Duration::from_secs(1);
+    // let mut delay = tokio::time::delay_for(duration);
+    // tokio::select! {
+    //     _ = &mut delay => {}
+    //     event = fed_check_event => if let Some(event) = event {
+    //         match event {
+    //             sled::Event::Insert { key, value } => {
+    //                 let pdu = serde_json::from_slice::<crate::PduEvent>(&value)
+    //                     .map_err(|_| Error::bad_database("Invalid PDU in db."))?;
+
+    //                 crate::federation::check_and_send_pdu_federation(&db, &pdu)?;
+    //             }
+    //             sled::Event::Remove { key } => unimplemented!(),
+    //         }
+    //     }
+    // }
 
     Ok(join_room_by_id::Response {
         room_id: body.room_id.clone(),
@@ -151,6 +153,7 @@ pub fn leave_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(leave_room::Response.into())
@@ -186,6 +189,7 @@ pub fn invite_user_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
 
         Ok(invite_user::Response.into())
@@ -236,6 +240,7 @@ pub fn kick_user_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(kick_user::Response.into())
@@ -291,6 +296,7 @@ pub fn ban_user_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(ban_user::Response.into())
@@ -337,6 +343,7 @@ pub fn unban_user_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(unban_user::Response.into())

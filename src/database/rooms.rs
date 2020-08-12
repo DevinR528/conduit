@@ -377,6 +377,7 @@ impl Rooms {
         pdu_builder: PduBuilder,
         globals: &super::globals::Globals,
         account_data: &super::account_data::AccountData,
+        users: &super::users::Users,
     ) -> Result<EventId> {
         let PduBuilder {
             room_id,
@@ -669,6 +670,16 @@ impl Rooms {
         )
         .expect("event is valid, we just created it");
 
+        //
+        // Federation and STate Resolution start here
+        //
+        // Then the event is added to the DB although this should probably be moved
+        // into the event checks in state resolution as well as the checks above this section
+        //
+        //
+
+        crate::federation::check_and_send_pdu_federation(self, users, &pdu)?;
+
         self.replace_pdu_leaves(&room_id, &pdu.event_id)?;
 
         // Increment the last index and use that
@@ -733,6 +744,7 @@ impl Rooms {
                         &sender,
                         account_data,
                         globals,
+                        users,
                     )?;
                 }
             }
@@ -921,6 +933,7 @@ impl Rooms {
         sender: &UserId,
         account_data: &super::account_data::AccountData,
         globals: &super::globals::Globals,
+        users: &super::users::Users,
     ) -> Result<()> {
         let membership = member_content.membership;
         let mut userroom_id = user_id.to_string().as_bytes().to_vec();
@@ -967,6 +980,7 @@ impl Rooms {
                         },
                         globals,
                         account_data,
+                        users,
                     )?;
 
                     return Ok(());

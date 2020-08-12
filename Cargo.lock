@@ -17,9 +17,9 @@ checksum = "ee2a4ec343196209d6594e19543ae87a39f96d5534d7174822a3ad825dd6ed7e"
 
 [[package]]
 name = "adler32"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "567b077b825e468cc974f0020d4082ee6e03132512f207ef1a02fd5d00d1f32d"
+checksum = "aae1277d39aeec15cb388266ecc24b11c80469deae6067e17a1a7aa9e5c1f234"
 
 [[package]]
 name = "aead"
@@ -73,15 +73,6 @@ checksum = "d050d39b0b7688b3a3254394c3e30a9d66c41dcf9b05b0e2dbdc623f6505d264"
 dependencies = [
  "block-cipher",
  "opaque-debug 0.2.3",
-]
-
-[[package]]
-name = "aho-corasick"
-version = "0.7.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "043164d8ba5c4c3035fec9bbee8647c0261d788f3474306f93bb65901cae0e86"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -298,7 +289,7 @@ dependencies = [
  "rand",
  "reqwest",
  "rocket",
- "ruma 0.1.0 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
+ "ruma",
  "rust-argon2 0.8.2",
  "serde",
  "serde_json",
@@ -481,9 +472,9 @@ checksum = "134951f4028bdadb9b84baf4232681efbf277da25144b9b0ad65df75946c422b"
 
 [[package]]
 name = "either"
-version = "1.5.3"
+version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb1f6b1ce1c140482ea30ddd3335fc0024ac7ee112895426e0a629a6c20adfe3"
+checksum = "cd56b59865bce947ac5958779cfa508f6c3b9497cc762b7e24a12d11ccde2c4f"
 
 [[package]]
 name = "encoding_rs"
@@ -657,9 +648,9 @@ dependencies = [
 
 [[package]]
 name = "generic-array"
-version = "0.14.3"
+version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60fb4bb6bba52f78a471264d9a3b7d026cc0af47b22cd2cffbc0b787ca003e63"
+checksum = "501466ecc8a30d1d3b7fc9229b122b2ce8ed6e9d9223f1138d4babb253e51817"
 dependencies = [
  "typenum",
  "version_check",
@@ -728,9 +719,9 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34f595585f103464d8d2f6e9864682d74c1601fed5e07d62b1c9058dba8246fb"
+checksum = "e91b62f79061a0bc2e046024cb7ba44b08419ed238ecbd9adbd787434b9e8c25"
 dependencies = [
  "autocfg",
 ]
@@ -866,9 +857,9 @@ dependencies = [
 
 [[package]]
 name = "indexmap"
-version = "1.5.0"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b88cd59ee5f71fea89a62248fc8f387d44400cefe05ef548466d61ced9029a7"
+checksum = "86b45e59b16c76b11bf9738fd5d38879d3bd28ad292d7b313608becb17ae2df9"
 dependencies = [
  "autocfg",
  "hashbrown",
@@ -1489,10 +1480,7 @@ version = "1.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c3780fcf44b193bc4d09f36d2a3c87b251da4a046c87795a0d35f4f927ad8e6"
 dependencies = [
- "aho-corasick",
- "memchr",
  "regex-syntax",
- "thread_local",
 ]
 
 [[package]]
@@ -1632,46 +1620,17 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.1.0"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
+source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
 dependencies = [
- "ruma-api 0.16.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
+ "ruma-api",
  "ruma-appservice-api",
- "ruma-client-api 0.9.0 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-common 0.1.3",
- "ruma-events 0.21.3 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-federation-api 0.0.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
- "ruma-signatures 0.6.0-dev.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
-]
-
-[[package]]
-name = "ruma"
-version = "0.1.0"
-source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
-dependencies = [
- "ruma-api 0.16.1 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-client-api 0.9.0 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-common 0.2.0",
- "ruma-events 0.21.3 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-federation-api 0.0.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-identifiers 0.17.1",
+ "ruma-client-api",
+ "ruma-common",
+ "ruma-events",
+ "ruma-federation-api",
+ "ruma-identifiers",
  "ruma-identifiers-macros",
- "ruma-signatures 0.6.0-dev.1 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
-]
-
-[[package]]
-name = "ruma-api"
-version = "0.16.1"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "http",
- "percent-encoding",
- "ruma-api-macros 0.16.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
- "ruma-serde 0.2.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "serde",
- "serde_json",
- "strum",
+ "ruma-signatures",
 ]
 
 [[package]]
@@ -1681,23 +1640,12 @@ source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b21
 dependencies = [
  "http",
  "percent-encoding",
- "ruma-api-macros 0.16.1 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-identifiers 0.17.1",
- "ruma-serde 0.2.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
+ "ruma-api-macros",
+ "ruma-identifiers",
+ "ruma-serde",
  "serde",
  "serde_json",
  "strum",
-]
-
-[[package]]
-name = "ruma-api-macros"
-version = "0.16.1"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "matches",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1713,31 +1661,14 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.1.0"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
+source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
 dependencies = [
- "ruma-api 0.16.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-common 0.1.3",
- "ruma-events 0.21.3 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
+ "ruma-api",
+ "ruma-common",
+ "ruma-events",
+ "ruma-identifiers",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "ruma-client-api"
-version = "0.9.0"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "http",
- "js_int",
- "ruma-api 0.16.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-common 0.1.3",
- "ruma-events 0.21.3 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
- "ruma-serde 0.2.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "serde",
- "serde_json",
- "strum",
 ]
 
 [[package]]
@@ -1747,24 +1678,11 @@ source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b21
 dependencies = [
  "http",
  "js_int",
- "ruma-api 0.16.1 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-common 0.2.0",
- "ruma-events 0.21.3 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-identifiers 0.17.1",
- "ruma-serde 0.2.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "serde",
- "serde_json",
- "strum",
-]
-
-[[package]]
-name = "ruma-common"
-version = "0.1.3"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "js_int",
- "matches",
- "ruma-serde 0.2.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
+ "ruma-api",
+ "ruma-common",
+ "ruma-events",
+ "ruma-identifiers",
+ "ruma-serde",
  "serde",
  "serde_json",
  "strum",
@@ -1776,22 +1694,7 @@ version = "0.2.0"
 source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
 dependencies = [
  "js_int",
- "ruma-serde 0.2.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "serde",
- "serde_json",
- "strum",
-]
-
-[[package]]
-name = "ruma-events"
-version = "0.21.3"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "js_int",
- "ruma-common 0.1.3",
- "ruma-events-macros 0.21.3 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
- "ruma-serde 0.2.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
+ "ruma-serde",
  "serde",
  "serde_json",
  "strum",
@@ -1803,24 +1706,13 @@ version = "0.21.3"
 source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
 dependencies = [
  "js_int",
- "ruma-common 0.2.0",
- "ruma-events-macros 0.21.3 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-identifiers 0.17.1",
- "ruma-serde 0.2.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
+ "ruma-common",
+ "ruma-events-macros",
+ "ruma-identifiers",
+ "ruma-serde",
  "serde",
  "serde_json",
  "strum",
-]
-
-[[package]]
-name = "ruma-events-macros"
-version = "0.21.3"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "matches",
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1836,42 +1728,16 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.0.2"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "js_int",
- "matches",
- "ruma-api 0.16.1 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-common 0.1.3",
- "ruma-events 0.21.3 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "ruma-identifiers 0.17.0-pre.1",
- "ruma-serde 0.2.2 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "ruma-federation-api"
-version = "0.0.2"
 source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95#d5d2d1d893fa12d27960e4c58d6c09b215d06e95"
 dependencies = [
  "js_int",
- "ruma-api 0.16.1 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-common 0.2.0",
- "ruma-events 0.21.3 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
- "ruma-identifiers 0.17.1",
- "ruma-serde 0.2.2 (git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b215d06e95)",
+ "ruma-api",
+ "ruma-common",
+ "ruma-events",
+ "ruma-identifiers",
+ "ruma-serde",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "ruma-identifiers"
-version = "0.17.0-pre.1"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "matches",
- "serde",
- "strum",
 ]
 
 [[package]]
@@ -1891,20 +1757,8 @@ source = "git+https://github.com/ruma/ruma?rev=d5d2d1d893fa12d27960e4c58d6c09b21
 dependencies = [
  "proc-macro2",
  "quote",
- "ruma-identifiers 0.17.1",
+ "ruma-identifiers",
  "syn",
-]
-
-[[package]]
-name = "ruma-serde"
-version = "0.2.2"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "form_urlencoded",
- "itoa",
- "js_int",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1917,17 +1771,6 @@ dependencies = [
  "js_int",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "ruma-signatures"
-version = "0.6.0-dev.1"
-source = "git+https://github.com/DevinR528/ruma?branch=pdu-deserialize#bfa6b69342f549e33447e4ee2e174020ea9c8007"
-dependencies = [
- "base64 0.12.3",
- "ring",
- "serde_json",
- "untrusted",
 ]
 
 [[package]]
@@ -2065,18 +1908,18 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.114"
+version = "1.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5317f7588f0a5078ee60ef675ef96735a1442132dc645eb1d12c018620ed8cd3"
+checksum = "e54c9a88f2da7238af84b5101443f0c0d0a3bbdc455e34a5c9497b1903ed55d5"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.114"
+version = "1.0.115"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a0be94b04690fbaed37cddffc5c134bf537c8e3329d53e982fe04c374978f8e"
+checksum = "609feed1d0a73cc36a0182a840a9b37b4a82f0b1150369f0536a9e3f2a31dc48"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2136,9 +1979,9 @@ dependencies = [
 
 [[package]]
 name = "signal-hook-registry"
-version = "1.2.0"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94f478ede9f64724c5d173d7bb56099ec3e2d9fc2774aac65d34b8b890405f41"
+checksum = "a3e12110bc539e657a646068aaf5eb5b63af9d0c1f7b29c97113fad80e15f035"
 dependencies = [
  "arc-swap",
  "libc",
@@ -2170,9 +2013,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.4.1"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
+checksum = "fbee7696b84bbf3d89a1c2eccff0850e3047ed46bfcd2e92c29a2d074d57e252"
 
 [[package]]
 name = "socket2"
@@ -2210,12 +2053,12 @@ checksum = "7345c971d1ef21ffdbd103a75990a15eb03604fc8b8852ca8cb418ee1a099028"
 [[package]]
 name = "state-res"
 version = "0.1.0"
-source = "git+https://github.com/ruma/state-res?branch=use-evmap#185047918a8f5ededc4195cf7370bf92d196c67e"
+source = "git+https://github.com/ruma/state-res?branch=use-evmap#5a45970266d99cc163639ad5016740958aa6f9b8"
 dependencies = [
  "itertools",
  "js_int",
  "maplit",
- "ruma 0.1.0 (git+https://github.com/DevinR528/ruma?branch=pdu-deserialize)",
+ "ruma",
  "serde",
  "serde_json",
  "thiserror",
@@ -2301,9 +2144,9 @@ checksum = "502d53007c02d7605a05df1c1a73ee436952781653da5d0bf57ad608f66932c1"
 
 [[package]]
 name = "syn"
-version = "1.0.36"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cdb98bcb1f9d81d07b536179c269ea15999b5d14ea958196413869445bb5250"
+checksum = "e69abc24912995b3038597a7a593be5053eb0fb44f3cc5beec0deb421790c1f4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2494,9 +2337,9 @@ checksum = "e987b6bf443f4b5b3b6f38704195592cca41c5bb7aedd3c3693c7081f8289860"
 
 [[package]]
 name = "tracing"
-version = "0.1.17"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dbdf4ccd1652592b01286a5dbe1e2a77d78afaa34beadd9872a5f7396f92aaa9"
+checksum = "6d79ca061b032d6ce30c660fded31189ca0b9922bf483cd70759f13a2d86786c"
 dependencies = [
  "cfg-if",
  "log",
@@ -2506,9 +2349,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f0693bf8d6f2bf22c690fc61a9d21ac69efdbb894a17ed596b9af0f01e64b84b"
+checksum = "1fe233f4227389ab7df5b32649239da7ebe0b281824b4e84b342d04d3fd8c25e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2517,9 +2360,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.11"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94ae75f0d28ae10786f3b1895c55fe72e79928fd5ccdebb5438c75e93fec178f"
+checksum = "db63662723c316b43ca36d833707cc93dff82a02ba3d7e354f342682cc8b3545"
 dependencies = [
  "lazy_static",
 ]
@@ -2547,9 +2390,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.2.9"
+version = "0.2.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4f5dd7095c2481b7b3cbed71c8de53085fb3542bc3c2b4c73cba43e8f11c7ba"
+checksum = "abd165311cc4d7a555ad11cc77a37756df836182db0d81aac908c8184c584f40"
 dependencies = [
  "ansi_term",
  "chrono",
@@ -2560,6 +2403,7 @@ dependencies = [
  "serde_json",
  "sharded-slab",
  "smallvec",
+ "thread_local",
  "tracing-core",
  "tracing-log",
  "tracing-serde",

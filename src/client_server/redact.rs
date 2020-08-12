@@ -33,6 +33,7 @@ pub fn redact_event_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(redact_event::Response { event_id }.into())

@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, convert::TryFrom};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    convert::TryFrom,
+};
 
 use ruma::{
     api::client::error::ErrorKind,
@@ -11,8 +14,14 @@ use ruma::{
 };
 
 use crate::{
-    database::rooms::state::{EventContext, StateCacheEntry, StateGroupId, StateId, StateMap},
-    utils, Database, Error, PduEvent, Result,
+    database::{
+        rooms::{
+            state::{EventContext, EventMap, StateCacheEntry, StateGroupId, StateId, StateMap},
+            Rooms,
+        },
+        users::Users,
+    },
+    utils, Error, PduEvent, Result,
 };
 
 fn pdu_to_state_map(pdu: &PduEvent) -> ((EventType, Option<String>), EventId) {
@@ -29,22 +38,21 @@ fn pdu_to_state_map(pdu: &PduEvent) -> ((EventType, Option<String>), EventId) {
 /// Validate then send an event out to other servers after persisting it locally.
 ///
 /// The whole point of federation.
-pub fn check_and_send_pdu_federation(db: &Database, pdu: &PduEvent) -> Result<()> {
-    let context = create_event_context(db, pdu)?;
+pub fn check_and_send_pdu_federation(db: &Rooms, users: &Users, pdu: &PduEvent) -> Result<()> {
+    let context = create_event_context(db, users, pdu)?;
 
     // TODO send the damn thing
     Ok(())
 }
 
-pub fn create_event_context(db: &Database, pdu: &PduEvent) -> Result<EventContext> {
+pub fn create_event_context(db: &Rooms, users: &Users, pdu: &PduEvent) -> Result<EventContext> {
     let room_version = if pdu.kind == EventType::RoomCreate && pdu.state_key == Some("".to_owned())
     {
         serde_json::from_value::<create::CreateEventContent>(pdu.content.clone())
             .map_err(|_| Error::bad_database("Invalid create event in db."))?
             .room_version
     } else {
-        db.rooms
-            .get_room_version(&pdu.room_id)?
+        db.get_room_version(&pdu.room_id)?
             .ok_or_else(|| Error::BadRequest(ErrorKind::Unknown, "Create event not found."))?
     };
 
@@ -63,11 +71,11 @@ pub fn create_event_context(db: &Database, pdu: &PduEvent) -> Result<EventContex
 
         if [MembershipState::Invite, MembershipState::Join].contains(&membership) {
             if content.displayname.is_none() {
-                content.displayname = db.users.displayname(&target)?;
+                content.displayname = users.displayname(&target)?;
             }
 
             if content.avatar_url.is_none() {
-                content.avatar_url = db.users.avatar_url(&target)?;
+                content.avatar_url = users.avatar_url(&target)?;
             }
         }
 
@@ -91,16 +99,14 @@ fn create_new_client_event_with_content<T: EventContent>(
 }
 
 fn create_new_client_event(
-    db: &Database,
+    db: &Rooms,
     pdu: &PduEvent,
     prev_event_ids: Option<Vec<EventId>>,
 ) -> Result<EventContext> {
     let prev_events = if let Some(prev) = prev_event_ids {
-        db.rooms.prev_events_matching_ids(&pdu.room_id, &prev)?
+        db.prev_events_matching_ids(&pdu.room_id, &prev)?
     } else {
-        db.rooms
-            .prev_events(&pdu.room_id)
-            .collect::<Result<Vec<_>>>()?
+        db.prev_events(&pdu.room_id).collect::<Result<Vec<_>>>()?
     };
 
     let context = compute_event_context(db, pdu, None)?;
@@ -120,7 +126,7 @@ fn create_new_client_event(
 
         let rel = &relates.in_reply_to.event_id;
 
-        if let Some(_already_exists) = db.rooms.state.annotated_by_user(rel, &pdu.sender)? {
+        if let Some(_already_exists) = db.state.annotated_by_user(rel, &pdu.sender)? {
             return Err(Error::Conflict("Can not send same reaction twice."));
         }
     }
@@ -129,7 +135,7 @@ fn create_new_client_event(
 }
 
 fn compute_event_context(
-    db: &Database,
+    db: &Rooms,
     pdu: &PduEvent,
     old_state: Option<&[PduEvent]>,
 ) -> Result<EventContext> {
@@ -208,16 +214,13 @@ fn compute_event_context(
 }
 
 pub fn resolve_state_group_for_events(
-    db: &Database,
+    db: &Rooms,
     room_id: &RoomId,
     prev_event_ids: &[EventId],
 ) -> Result<StateCacheEntry> {
     // The state of the room at each previous event
     // in the forum of: state group id -> StateMap<EventId>
-    let mut state_group_ids = db
-        .rooms
-        .state
-        .get_state_group_ids(room_id, prev_event_ids)?;
+    let mut state_group_ids = db.state.get_state_group_ids(room_id, prev_event_ids)?;
 
     if state_group_ids.is_empty() {
         return Ok(StateCacheEntry::new(StateMap::new(), None, None, None));
@@ -226,45 +229,147 @@ pub fn resolve_state_group_for_events(
         let k = *state_group_ids.keys().next().unwrap();
         let (name, state_map) = state_group_ids.remove_entry(&k).unwrap();
 
-        // build the delta between this state group and the previous
-        let (prev_group, delta_ids) = get_state_group_delta(db, name)?;
+        // build the delta between this state group and the previous.
+        // TODO we know there is no previous state group here Huh?? why does
+        // synapse do this and not just use the current state as the delta?
+
+        // let (prev_group, delta_ids) = get_state_group_delta(db, name)?;
 
         return Ok(StateCacheEntry {
             state_id: StateGroupId::Group(name),
             state: state_map,
             state_group: Some(name),
-            prev_group,
-            delta_ids,
+            prev_group: None,
+            delta_ids: None, // FIXME
         });
     }
+
     // Either a state group ID or a `StateCacheEntry` ID
     let state_id = db
-        .rooms
         .state
         .current_state_id()
         .ok_or(utils::to_db("No state group ID found in db."))?;
     // The state
-    let state = db.rooms.state.current_state()?;
-    let state_group = db.rooms.state.new_state_group_id().ok();
+    let state = db.state.current_state()?;
+    let state_group = db.state.new_state_group_id().ok();
 
-    let (prev_group, delta_ids) = get_state_group_delta(db, state_id)?;
+    let (prev_group, delta_ids) = get_state_group_delta(db, &state, state_id)?;
 
-    Ok(StateCacheEntry {
-        state,
-        state_group,
-        state_id: StateGroupId::Group(state_id),
-        prev_group,
-        delta_ids,
-    })
+    // room_version is needed or can come from DB
+    resolve_state_groups(db, room_id, state_group_ids, None)
 }
 
-pub fn resolve_state_groups(db: &Database) -> Result<StateCacheEntry> {
-    todo!()
+pub fn resolve_state_groups(
+    db: &Rooms,
+    room_id: &RoomId,
+    state_groups: BTreeMap<StateId, StateMap<EventId>>,
+    event_map: Option<StateMap<EventId>>,
+) -> Result<StateCacheEntry> {
+    let mut new_state = StateMap::new();
+    let mut conflicted = false;
+    for st in state_groups.values() {
+        for (k, ev_id) in st.iter() {
+            if new_state.contains_key(k) {
+                conflicted = true;
+                break;
+            }
+            new_state.insert(k.clone(), ev_id.clone());
+        }
+        if conflicted {
+            break;
+        }
+    }
+
+    if conflicted {
+        new_state =
+            resolve_events_with_db(db, room_id, state_groups.values().cloned().collect(), None)?;
+    }
+
+    let cache = make_state_cache(db, new_state, state_groups)?;
+
+    Ok(cache)
 }
 
 pub fn get_state_group_delta(
-    db: &Database,
+    db: &Rooms,
+    current_state: &StateMap<EventId>,
     state_id: StateId,
 ) -> Result<(Option<StateId>, Option<StateMap<EventId>>)> {
-    Ok((db.rooms.state.prev_state_id(state_id), todo!()))
+    let prev_state_group_id = db.state.prev_state_id(state_id);
+    let delta_ids = if let Some(prev) = &prev_state_group_id {
+        let prev_state = db.state.get_statemap(*prev)?;
+
+        let diff = prev_state.into_iter().collect::<BTreeSet<_>>();
+        Some(
+            // TODO remove the clones somehow ?
+            diff.symmetric_difference(&current_state.clone().into_iter().collect())
+                .cloned()
+                .collect(),
+        )
+    } else {
+        None
+    };
+    Ok((prev_state_group_id, delta_ids))
+}
+
+pub fn resolve_events_with_db(
+    db: &Rooms, // Get room version from DB ?
+    room_id: &RoomId,
+    state_set: Vec<StateMap<EventId>>,
+    event_map: Option<EventMap<PduEvent>>,
+) -> Result<StateMap<EventId>> {
+    let room_version = todo!();
+
+    // constructing this is free there are no fields this will change to a free function soon
+    let resolver = state_res::StateResolution::default();
+    match resolver.resolve(room_id, room_version, &state_set, None, &db.state) {
+        Ok(state_res::ResolutionResult::Resolved(res)) => Ok(res),
+        _ => Err(Error::Conflict(&format!(
+            "State resolution failed for {}",
+            room_id.as_str()
+        ))),
+    }
+}
+
+pub fn make_state_cache(
+    _db: &Rooms, // TODO some sort of mem caching
+    new_state: StateMap<EventId>,
+    state_groups: BTreeMap<StateId, StateMap<EventId>>,
+) -> Result<StateCacheEntry> {
+    let new_state_ev_ids = new_state.iter().collect::<BTreeSet<_>>();
+    for (sg, state) in state_groups.iter() {
+        if new_state_ev_ids.len() != state.len() {
+            continue;
+        }
+
+        let old_state_ev_ids = state.iter().collect::<BTreeSet<_>>();
+        if new_state_ev_ids == old_state_ev_ids {
+            return Ok(StateCacheEntry::new(new_state, Some(*sg), None, None));
+        }
+    }
+
+    let mut prev_group = None;
+    let mut delta_ids = None;
+    let mut delta_len = 0;
+
+    for (old_group, old_state) in state_groups.iter() {
+        let n_delta = new_state
+            .iter()
+            .filter(|(k, v)| old_state.get(k) != Some(v))
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<StateMap<_>>();
+
+        // TODO There is also a check if `delta_ids.is_none()` in synapse,
+        // because of mutability and borrows we cannot do that but
+        // n_delta will never be smaller than 0 so the check should work
+        // the same.
+        if n_delta.len() > delta_len {
+            delta_len = n_delta.len();
+
+            prev_group = Some(*old_group);
+            delta_ids = Some(n_delta);
+        }
+    }
+
+    Ok(StateCacheEntry::new(new_state, None, prev_group, delta_ids))
 }

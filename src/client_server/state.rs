@@ -76,6 +76,7 @@ pub fn create_state_event_for_key_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(create_state_event_for_key::Response { event_id }.into())

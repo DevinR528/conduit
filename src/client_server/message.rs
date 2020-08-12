@@ -39,6 +39,7 @@ pub fn create_message_event_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     Ok(create_message_event::Response { event_id }.into())

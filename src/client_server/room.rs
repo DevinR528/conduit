@@ -68,6 +68,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // 2. Let the room creator join
@@ -90,6 +91,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // Figure out preset. We need it for power levels and preset specific events
@@ -139,6 +141,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // 4. Events set by preset
@@ -165,6 +168,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // 4.2 History Visibility
@@ -183,6 +187,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // 4.3 Guest Access
@@ -209,6 +214,7 @@ pub fn create_room_route(
         },
         &db.globals,
         &db.account_data,
+        &db.users,
     )?;
 
     // 5. Events listed in initial_state
@@ -237,6 +243,7 @@ pub fn create_room_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
     }
 
@@ -259,6 +266,7 @@ pub fn create_room_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
     }
 
@@ -278,6 +286,7 @@ pub fn create_room_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
     }
 
@@ -302,6 +311,7 @@ pub fn create_room_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
     }
 

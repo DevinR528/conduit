@@ -304,6 +304,7 @@ pub fn deactivate_route(
             },
             &db.globals,
             &db.account_data,
+            &db.users,
         )?;
     }
 
