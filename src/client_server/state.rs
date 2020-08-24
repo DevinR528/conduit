@@ -101,6 +101,8 @@ pub fn get_state_events_route(
         ));
     }
 
+    db.rooms.flush_room_state()?;
+
     Ok(get_state_events::Response {
         room_state: db
             .rooms

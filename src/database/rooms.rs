@@ -19,7 +19,7 @@ use ruma::{
     },
     EventId, Raw, RoomAliasId, RoomId, UserId,
 };
-use sled::IVec;
+use sled::{IVec, Transactional};
 use state_res::{event_auth, Requester, StateEvent, StateMap, StateStore};
 
 use std::{
@@ -292,6 +292,12 @@ impl Rooms {
             .is_some())
     }
 
+    pub fn flush_room_state(&self) -> Result<()> {
+        self.roomstateid_pduid.flush()?;
+        self.pduid_pdu.flush()?;
+        Ok(())
+    }
+
     /// Returns the full room state.
     pub fn room_state_full(
         &self,
@@ -523,10 +529,23 @@ impl Rooms {
         pdu_id.push(0xff);
         pdu_id.extend_from_slice(&index.to_be_bytes());
 
-        self.pduid_pdu.insert(&pdu_id, &*pdu_json.to_string())?;
+        // Batch the most important writes and wait on them
+        match (&self.pduid_pdu, &self.eventid_pduid).transaction(|(pduid, eventid)| {
+            pduid.insert(&*pdu_id, &*pdu_json.to_string())?;
 
-        self.eventid_pduid
-            .insert(pdu.event_id.as_bytes(), &*pdu_id)?;
+            eventid.insert(pdu.event_id.as_bytes(), &*pdu_id)?;
+
+            Ok(())
+        }) {
+            Ok(_) => Ok(()),
+            Err(sled::transaction::TransactionError::<()>::Abort(_)) => {
+                log::warn!("Atomic transaction aborted and rolled back.");
+                Ok::<_, Error>(())
+            }
+            Err(sled::transaction::TransactionError::Storage(_)) => {
+                Err(Error::bad_database("DB did not update atomically."))
+            }
+        }?;
 
         if let Some(state_key) = &pdu.state_key {
             self.append_state_pdu(&pdu.room_id, &pdu_id, state_key, &pdu.kind)?;
@@ -628,23 +647,39 @@ impl Rooms {
             self.stateid_pduid.insert(&state_id, &pid)?;
         }
 
-        // This event's state does not include the event itself. `current_state_pduids`
-        // uses `roomstateid_pduid` before the current event is inserted to the tree so the state
-        // will be everything up to but not including the incoming event.
-        self.pduid_statehash.insert(pdu_id, state_hash.as_slice())?;
+        // Batch and wait for the most important writes
+        match (
+            &self.roomstateid_pduid,
+            &self.pduid_statehash,
+            &self.roomid_statehash,
+        )
+            .transaction(|(room_pduid, pduid, statehash)| {
+                // This event's state does not include the event itself. `current_state_pduids/new_state_hash_id`
+                // uses `roomstateid_pduid` before the current event is inserted to the tree so the state
+                // will be everything up to but not including the incoming event.
+                pduid.insert(pdu_id, state_hash.as_slice())?;
 
-        self.roomid_statehash
-            .insert(room_id.as_bytes(), state_hash.as_slice())?;
+                statehash.insert(room_id.as_bytes(), state_hash.as_slice())?;
 
-        let mut key = room_id.as_bytes().to_vec();
-        key.push(0xff);
-        key.extend_from_slice(kind.to_string().as_bytes());
-        key.push(0xff);
-        key.extend_from_slice(state_key.as_bytes());
-        self.roomstateid_pduid.insert(key, pdu_id)?;
+                let mut key = room_id.as_bytes().to_vec();
+                key.push(0xff);
+                key.extend_from_slice(kind.to_string().as_bytes());
+                key.push(0xff);
+                key.extend_from_slice(state_key.as_bytes());
+                room_pduid.insert(key, pdu_id)?;
+                Ok(())
+            }) {
+            Ok(_) => Ok(()),
+            Err(sled::transaction::TransactionError::<()>::Abort(_)) => {
+                log::warn!("Atomic transaction aborted and rolled back.");
+                Ok::<_, Error>(())
+            }
+            Err(sled::transaction::TransactionError::Storage(_)) => {
+                Err(Error::bad_database("DB did not update atomically."))
+            }
+        }?;
 
         self.roomstateid_pduid.flush()?;
-        self.pduid_pdu.flush()?;
 
         Ok(state_hash)
     }
@@ -1089,6 +1124,9 @@ impl Rooms {
             for key in self.aliasid_alias.scan_prefix(room_id).keys() {
                 self.aliasid_alias.remove(key?)?;
             }
+
+            self.alias_roomid.flush()?;
+            self.aliasid_alias.flush()?;
         }
 
         Ok(())
