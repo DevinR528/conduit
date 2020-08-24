@@ -643,6 +643,9 @@ impl Rooms {
         key.extend_from_slice(state_key.as_bytes());
         self.roomstateid_pduid.insert(key, pdu_id)?;
 
+        self.roomstateid_pduid.flush()?;
+        self.pduid_pdu.flush()?;
+
         Ok(state_hash)
     }
 
