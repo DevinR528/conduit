@@ -504,7 +504,9 @@ impl Rooms {
         Ok(())
     }
 
-    /// Creates a new persisted data unit and adds it to a room.
+    /// Appends the given PDU to the correct trees.
+    ///
+    /// This method does no authentication, it simply signs the PDU and inserts.
     pub fn append_pdu(
         &self,
         pdu: PduEvent,
@@ -678,8 +680,6 @@ impl Rooms {
                 Err(Error::bad_database("DB did not update atomically."))
             }
         }?;
-
-        self.roomstateid_pduid.flush()?;
 
         Ok(state_hash)
     }
@@ -892,7 +892,7 @@ impl Rooms {
         room_id: &RoomId,
         since: u64,
     ) -> Result<impl DoubleEndedIterator<Item = Result<PduEvent>>> {
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        let mut prefix = room_id.as_bytes().to_vec();
         prefix.push(0xff);
 
         // Skip the first pdu if it's exactly at since, because we sent that last time
@@ -926,7 +926,7 @@ impl Rooms {
         until: u64,
     ) -> impl Iterator<Item = Result<(u64, PduEvent)>> {
         // Create the first part of the full pdu id
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        let mut prefix = room_id.as_bytes().to_vec();
         prefix.push(0xff);
 
         let mut current = prefix.clone();
@@ -964,7 +964,7 @@ impl Rooms {
         from: u64,
     ) -> impl Iterator<Item = Result<(u64, PduEvent)>> {
         // Create the first part of the full pdu id
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        let mut prefix = room_id.as_bytes().to_vec();
         prefix.push(0xff);
 
         let mut current = prefix.clone();
@@ -1020,13 +1020,13 @@ impl Rooms {
         globals: &super::globals::Globals,
     ) -> Result<()> {
         let membership = member_content.membership;
-        let mut userroom_id = user_id.to_string().as_bytes().to_vec();
+        let mut userroom_id = user_id.as_bytes().to_vec();
         userroom_id.push(0xff);
-        userroom_id.extend_from_slice(room_id.to_string().as_bytes());
+        userroom_id.extend_from_slice(room_id.as_bytes());
 
-        let mut roomuser_id = room_id.to_string().as_bytes().to_vec();
+        let mut roomuser_id = room_id.as_bytes().to_vec();
         roomuser_id.push(0xff);
-        roomuser_id.extend_from_slice(user_id.to_string().as_bytes());
+        roomuser_id.extend_from_slice(user_id.as_bytes());
 
         match &membership {
             member::MembershipState::Join => {
@@ -1089,9 +1089,9 @@ impl Rooms {
 
     /// Makes a user forget a room.
     pub fn forget(&self, room_id: &RoomId, user_id: &UserId) -> Result<()> {
-        let mut userroom_id = user_id.to_string().as_bytes().to_vec();
+        let mut userroom_id = user_id.as_bytes().to_vec();
         userroom_id.push(0xff);
-        userroom_id.extend_from_slice(room_id.to_string().as_bytes());
+        userroom_id.extend_from_slice(room_id.as_bytes());
 
         self.userroomid_left.remove(userroom_id)?;
 
@@ -1107,8 +1107,8 @@ impl Rooms {
         if let Some(room_id) = room_id {
             // New alias
             self.alias_roomid
-                .insert(alias.alias(), &*room_id.to_string())?;
-            let mut aliasid = room_id.to_string().as_bytes().to_vec();
+                .insert(alias.alias(), room_id.as_bytes())?;
+            let mut aliasid = room_id.as_bytes().to_vec();
             aliasid.extend_from_slice(&globals.next_count()?.to_be_bytes());
             self.aliasid_alias.insert(aliasid, &*alias.alias())?;
         } else {
@@ -1146,7 +1146,7 @@ impl Rooms {
     }
 
     pub fn room_aliases(&self, room_id: &RoomId) -> impl Iterator<Item = Result<RoomAliasId>> {
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        let mut prefix = room_id.as_bytes().to_vec();
         prefix.push(0xff);
 
         self.aliasid_alias
@@ -1160,16 +1160,16 @@ impl Rooms {
 
     pub fn set_public(&self, room_id: &RoomId, public: bool) -> Result<()> {
         if public {
-            self.publicroomids.insert(room_id.to_string(), &[])?;
+            self.publicroomids.insert(room_id.as_bytes(), &[])?;
         } else {
-            self.publicroomids.remove(room_id.to_string())?;
+            self.publicroomids.remove(room_id.as_bytes())?;
         }
 
         Ok(())
     }
 
     pub fn is_public_room(&self, room_id: &RoomId) -> Result<bool> {
-        Ok(self.publicroomids.contains_key(room_id.to_string())?)
+        Ok(self.publicroomids.contains_key(room_id.as_bytes())?)
     }
 
     pub fn public_rooms(&self) -> impl Iterator<Item = Result<RoomId>> {
@@ -1188,7 +1188,7 @@ impl Rooms {
         room_id: &RoomId,
         search_string: &str,
     ) -> Result<(impl Iterator<Item = IVec> + 'a, Vec<String>)> {
-        let mut prefix = room_id.to_string().as_bytes().to_vec();
+        let mut prefix = room_id.as_bytes().to_vec();
         prefix.push(0xff);
 
         let words = search_string
@@ -1274,7 +1274,7 @@ impl Rooms {
     /// Returns an iterator over all joined members of a room.
     pub fn room_members(&self, room_id: &RoomId) -> impl Iterator<Item = Result<UserId>> {
         self.roomuserid_joined
-            .scan_prefix(room_id.to_string())
+            .scan_prefix(room_id.as_bytes())
             .keys()
             .map(|key| {
                 Ok(UserId::try_from(
@@ -1295,7 +1295,7 @@ impl Rooms {
     /// Returns an iterator over all invited members of a room.
     pub fn room_members_invited(&self, room_id: &RoomId) -> impl Iterator<Item = Result<UserId>> {
         self.roomuserid_invited
-            .scan_prefix(room_id.to_string())
+            .scan_prefix(room_id.as_bytes())
             .keys()
             .map(|key| {
                 Ok(UserId::try_from(
@@ -1316,7 +1316,7 @@ impl Rooms {
     /// Returns an iterator over all rooms this user joined.
     pub fn rooms_joined(&self, user_id: &UserId) -> impl Iterator<Item = Result<RoomId>> {
         self.userroomid_joined
-            .scan_prefix(user_id.to_string())
+            .scan_prefix(user_id.as_bytes())
             .keys()
             .map(|key| {
                 Ok(RoomId::try_from(
@@ -1337,7 +1337,7 @@ impl Rooms {
     /// Returns an iterator over all rooms a user was invited to.
     pub fn rooms_invited(&self, user_id: &UserId) -> impl Iterator<Item = Result<RoomId>> {
         self.userroomid_invited
-            .scan_prefix(&user_id.to_string())
+            .scan_prefix(user_id.as_bytes())
             .keys()
             .map(|key| {
                 Ok(RoomId::try_from(
@@ -1358,7 +1358,7 @@ impl Rooms {
     /// Returns an iterator over all rooms a user left.
     pub fn rooms_left(&self, user_id: &UserId) -> impl Iterator<Item = Result<RoomId>> {
         self.userroomid_left
-            .scan_prefix(&user_id.to_string())
+            .scan_prefix(user_id.as_bytes())
             .keys()
             .map(|key| {
                 Ok(RoomId::try_from(
@@ -1377,25 +1377,25 @@ impl Rooms {
     }
 
     pub fn is_joined(&self, user_id: &UserId, room_id: &RoomId) -> Result<bool> {
-        let mut userroom_id = user_id.to_string().as_bytes().to_vec();
+        let mut userroom_id = user_id.as_bytes().to_vec();
         userroom_id.push(0xff);
-        userroom_id.extend_from_slice(room_id.to_string().as_bytes());
+        userroom_id.extend_from_slice(room_id.as_bytes());
 
         Ok(self.userroomid_joined.get(userroom_id)?.is_some())
     }
 
     pub fn is_invited(&self, user_id: &UserId, room_id: &RoomId) -> Result<bool> {
-        let mut userroom_id = user_id.to_string().as_bytes().to_vec();
+        let mut userroom_id = user_id.as_bytes().to_vec();
         userroom_id.push(0xff);
-        userroom_id.extend_from_slice(room_id.to_string().as_bytes());
+        userroom_id.extend_from_slice(room_id.as_bytes());
 
         Ok(self.userroomid_invited.get(userroom_id)?.is_some())
     }
 
     pub fn is_left(&self, user_id: &UserId, room_id: &RoomId) -> Result<bool> {
-        let mut userroom_id = user_id.to_string().as_bytes().to_vec();
+        let mut userroom_id = user_id.as_bytes().to_vec();
         userroom_id.push(0xff);
-        userroom_id.extend_from_slice(room_id.to_string().as_bytes());
+        userroom_id.extend_from_slice(room_id.as_bytes());
 
         Ok(self.userroomid_left.get(userroom_id)?.is_some())
     }
