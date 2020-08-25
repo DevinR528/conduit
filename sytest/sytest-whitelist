@@ -4,6 +4,7 @@
 3pid invite join valid signature but unreachable ID server are rejected
 3pid invite join with wrong but valid signature are rejected
 AS cannot create users outside its own namespace
+A pair of servers can establish a join in a v2 room
 After deactivating account, can't log in with an email
 Alias creators can delete alias with no ops
 Alias creators can delete canonical alias with no ops
@@ -114,7 +115,6 @@ Typing events appear in initial sync
 Uninvited users cannot join the room
 User appears in user directory
 User directory correctly update on display name change
-User in dir while user still shares private rooms
 User in shared private room does appear in user directory
 User is offline if they set_presence=offline in their sync
 Users with sufficient power-level can delete other's aliases
