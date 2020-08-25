@@ -15,6 +15,8 @@ pub fn search_users_route(
 ) -> ConduitResult<search_users::Response> {
     let limit = u64::from(body.limit) as usize;
 
+    db.users.flush_user()?;
+
     let mut users = db.users.iter().filter_map(|user_id| {
         // Filter out buggy users (they should not exist, but you never know...)
         let user_id = user_id.ok()?;

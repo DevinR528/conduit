@@ -34,6 +34,14 @@ pub struct Users {
 }
 
 impl Users {
+    pub fn flush_user(&self) -> Result<()> {
+        self.userid_avatarurl.flush()?;
+        self.userid_password.flush()?;
+        self.userid_displayname.flush()?;
+
+        Ok(())
+    }
+
     /// Check if a user has an account on this homeserver.
     pub fn exists(&self, user_id: &UserId) -> Result<bool> {
         Ok(self.userid_password.contains_key(user_id.to_string())?)
