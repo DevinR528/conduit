@@ -17,7 +17,7 @@ edition = "2018"
 rocket = { git = "https://github.com/timokoesters/Rocket.git", branch = "empty_parameters", features = ["tls"] }
 #ruma = { git = "https://github.com/ruma/ruma", features = ["rand", "client-api", "federation-api", "unstable-pre-spec", "unstable-synapse-quirks"], rev = "aff914050eb297bd82b8aafb12158c88a9e480e1" } # Used for matrix spec type definitions and helpers
 ruma = { git = "https://github.com/timokoesters/ruma", features = ["rand", "client-api", "federation-api", "unstable-exhaustive-types", "unstable-pre-spec", "unstable-synapse-quirks"], branch = "timo-fed-fixes" } # Used for matrix spec type definitions and helpers
-#ruma = { path = "../ruma/ruma", features = ["unstable-exhaustive-types", "rand", "client-api", "federation-api", "unstable-pre-spec", "unstable-synapse-quirks"] }
+# ruma = { path = "../ruma/ruma", features = ["unstable-exhaustive-types", "rand", "client-api", "federation-api", "unstable-pre-spec", "unstable-synapse-quirks"] }
 tokio = "0.2.22" # Used for long polling
 sled = "0.32.0" # Used for storing data permanently
 log = "0.4.8" # Used for emitting log entries
@@ -48,3 +48,6 @@ required-features = ["conduit_bin"]
 [lib]
 name = "conduit"
 path = "src/lib.rs"
+
+[patch."https://github.com/timokoesters/ruma"]
+ruma = { path = "../ruma/ruma" }
