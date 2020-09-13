@@ -78,6 +78,7 @@ pub fn register_route(
     body: Ruma<register::Request<'_>>,
 ) -> ConduitResult<register::Response> {
     dbg!(&*body);
+
     if db.globals.registration_disabled() {
         return Err(Error::BadRequest(
             ErrorKind::Forbidden,
@@ -197,9 +198,11 @@ pub fn register_route(
     let device_id = if is_guest {
         None
     } else {
-        body.device_id.clone()
+        body.body.device_id.clone()
     }
     .unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
+
+    dbg!(&device_id);
 
     // Generate new token for the device
     let token = utils::random_string(TOKEN_LENGTH);

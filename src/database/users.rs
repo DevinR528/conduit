@@ -146,7 +146,7 @@ impl Users {
     /// Get a the avatar_url of a user.
     pub fn avatar_url(&self, user_id: &UserId) -> Result<Option<String>> {
         self.userid_avatarurl
-            .get(user_id.to_string())?
+            .get(user_id.as_bytes())?
             .map_or(Ok(None), |bytes| {
                 Ok(Some(utils::string_from_bytes(&bytes).map_err(|_| {
                     Error::bad_database("Avatar URL in db is invalid.")
@@ -158,7 +158,7 @@ impl Users {
     pub fn set_avatar_url(&self, user_id: &UserId, avatar_url: Option<String>) -> Result<()> {
         if let Some(avatar_url) = avatar_url {
             self.userid_avatarurl
-                .insert(user_id.to_string(), &*avatar_url)?;
+                .insert(user_id.as_bytes(), &*avatar_url)?;
         } else {
             self.userid_avatarurl.remove(user_id.to_string())?;
         }
@@ -177,7 +177,7 @@ impl Users {
         // This method should never be called for nonexistent users.
         assert!(self.exists(user_id)?);
 
-        let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
+        let mut userdeviceid = user_id.as_bytes().to_vec();
         userdeviceid.push(0xff);
         userdeviceid.extend_from_slice(device_id.as_bytes());
 
@@ -200,7 +200,7 @@ impl Users {
 
     /// Removes a device from a user.
     pub fn remove_device(&self, user_id: &UserId, device_id: &DeviceId) -> Result<()> {
-        let mut userdeviceid = user_id.to_string().as_bytes().to_vec();
+        let mut userdeviceid = user_id.as_bytes().to_vec();
         userdeviceid.push(0xff);
         userdeviceid.extend_from_slice(device_id.as_bytes());
 
