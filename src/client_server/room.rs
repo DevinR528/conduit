@@ -345,8 +345,7 @@ pub fn upgrade_room_route(
     let sender_id = body.sender_id.as_ref().expect("user is authenticated");
 
     // Validate the room version requested
-    let new_version =
-        RoomVersionId::try_from(body.new_version.clone()).expect("invalid room version id");
+    let new_version = &body.new_version;
 
     if !matches!(
         new_version,
@@ -403,7 +402,7 @@ pub fn upgrade_room_route(
     let mut create_event_content =
         ruma::events::room::create::CreateEventContent::new(sender_id.clone());
     create_event_content.federate = federate;
-    create_event_content.room_version = new_version;
+    create_event_content.room_version = new_version.clone();
     create_event_content.predecessor = predecessor;
 
     db.rooms.build_and_append_pdu(

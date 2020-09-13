@@ -77,6 +77,7 @@ pub fn register_route(
     db: State<'_, Database>,
     body: Ruma<register::Request<'_>>,
 ) -> ConduitResult<register::Response> {
+    dbg!(&*body);
     if db.globals.registration_disabled() {
         return Err(Error::BadRequest(
             ErrorKind::Forbidden,
@@ -131,16 +132,25 @@ pub fn register_route(
     };
 
     if let Some(auth) = &body.auth {
-        let (worked, uiaainfo) =
-            db.uiaa
-                .try_auth(&user_id, "".into(), auth, &uiaainfo, &db.users, &db.globals)?;
+        let (worked, uiaainfo) = db.uiaa.try_auth(
+            &user_id,
+            body.device_id.as_ref().unwrap_or(&"".into()),
+            auth,
+            &uiaainfo,
+            &db.users,
+            &db.globals,
+        )?;
         if !worked {
             return Err(Error::Uiaa(uiaainfo));
         }
     // Success!
     } else {
         uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-        db.uiaa.create(&user_id, "".into(), &uiaainfo)?;
+        db.uiaa.create(
+            &user_id,
+            body.device_id.as_ref().unwrap_or(&"".into()),
+            &uiaainfo,
+        )?;
         return Err(Error::Uiaa(uiaainfo));
     }
 
