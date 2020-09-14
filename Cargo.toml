@@ -19,10 +19,10 @@ rocket = { git = "https://github.com/timokoesters/Rocket.git", branch = "empty_p
 ruma = { git = "https://github.com/timokoesters/ruma", features = ["rand", "client-api", "federation-api", "unstable-exhaustive-types", "unstable-pre-spec", "unstable-synapse-quirks"], branch = "timo-fed-fixes" } # Used for matrix spec type definitions and helpers
 #ruma = { path = "../ruma/ruma", features = ["unstable-exhaustive-types", "rand", "client-api", "federation-api", "unstable-pre-spec", "unstable-synapse-quirks"] }
 tokio = "0.2.22" # Used for long polling
-sled = "0.32.0" # Used for storing data permanently
+sled = "0.34.4" # Used for storing data permanently
 log = "0.4.8" # Used for emitting log entries
 http = "0.2.1" # Used for rocket<->ruma conversions
-directories = "2.0.2" # Used to find data directory for default db path
+directories = "3.0.1" # Used to find data directory for default db path
 js_int = "0.1.5" # Used for number types for ruma
 serde_json = { version = "1.0.53", features = ["raw_value"] } # Used for ruma wrapper
 serde = "1.0.111" # Used for pdu definition

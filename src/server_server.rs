@@ -4,6 +4,7 @@ use rocket::{get, post, put, response::content::Json, State};
 use ruma::{
     api::federation::directory::get_public_rooms_filtered,
     api::{
+        client::error::ErrorKind,
         federation::{
             directory::get_public_rooms,
             discovery::{
@@ -331,11 +332,25 @@ pub fn send_transaction_message_route<'a>(
     .into())
 }
 
-// #[cfg_attr(feature = "conduit_bin", get("/_matrix/federation/v1/query/profile"))]
-// pub fn get_server_version() -> ConduitResult<get_profile_information::Response> {
-//     Ok(get_profile_information::Response {
-//         displayname: Some("".into()),
-//         avatar_url: None,
-//     }
-//     .into())
-// }
+#[cfg_attr(
+    feature = "conduit_bin",
+    get("/_matrix/federation/v1/query/profile/<_>", data = "<body>")
+)]
+pub fn get_profile_route(
+    db: State<'_, Database>,
+    body: Ruma<get_profile_information::Request<'_>>,
+) -> ConduitResult<get_profile_information::Response> {
+    if !db.users.exists(&body.user_id)? {
+        // Return 404 if this user doesn't exist
+        return Err(Error::BadRequest(
+            ErrorKind::NotFound,
+            "Profile was not found.",
+        ));
+    }
+
+    Ok(get_profile_information::Response {
+        avatar_url: db.users.avatar_url(&body.user_id)?,
+        displayname: db.users.displayname(&body.user_id)?,
+    }
+    .into())
+}

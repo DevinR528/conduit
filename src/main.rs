@@ -125,6 +125,7 @@ fn setup_rocket() -> rocket::Rocket {
                 server_server::get_server_keys_deprecated,
                 server_server::get_public_rooms_route,
                 server_server::send_transaction_message_route,
+                server_server::get_profile_route,
             ],
         )
         .attach(AdHoc::on_attach("Config", |mut rocket| async {

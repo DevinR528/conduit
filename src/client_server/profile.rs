@@ -105,7 +105,7 @@ pub async fn get_displayname_route(
     } else {
         crate::server_server::send_request(
             &db,
-            body.user_id.server_name().to_string(),
+            body.user_id.server_name(),
             ruma::api::federation::query::get_profile_information::v1::Request {
                 user_id: &body.user_id,
                 field: None,
