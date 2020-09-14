@@ -9,6 +9,7 @@ use ruma::{
             discovery::{
                 get_server_keys, get_server_version::v1 as get_server_version, ServerKey, VerifyKey,
             },
+            query::get_profile_information::v1 as get_profile_information,
             transactions::send_transaction_message,
         },
         OutgoingRequest,
@@ -103,6 +104,8 @@ where
                 .iter()
                 .map(|(k, v)| (k, v.as_str().unwrap()))
         });
+
+    dbg!(&request_json);
 
     for signature_server in signatures {
         for s in signature_server {
@@ -327,3 +330,12 @@ pub fn send_transaction_message_route<'a>(
     }
     .into())
 }
+
+// #[cfg_attr(feature = "conduit_bin", get("/_matrix/federation/v1/query/profile"))]
+// pub fn get_server_version() -> ConduitResult<get_profile_information::Response> {
+//     Ok(get_profile_information::Response {
+//         displayname: Some("".into()),
+//         avatar_url: None,
+//     }
+//     .into())
+// }
