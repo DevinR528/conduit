@@ -1547,6 +1547,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.0.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "assign",
  "js_int",
@@ -1564,6 +1565,7 @@ dependencies = [
 [[package]]
 name = "ruma-api"
 version = "0.17.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "http",
  "percent-encoding",
@@ -1580,6 +1582,7 @@ dependencies = [
 [[package]]
 name = "ruma-api-macros"
 version = "0.17.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1590,6 +1593,7 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.2.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "ruma-api",
  "ruma-common",
@@ -1602,6 +1606,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.10.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "assign",
  "http",
@@ -1621,6 +1626,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.2.0"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "js_int",
  "ruma-common-macros",
@@ -1644,6 +1650,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.22.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -1658,6 +1665,7 @@ dependencies = [
 [[package]]
 name = "ruma-events-macros"
 version = "0.22.0-alpha.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1668,6 +1676,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.0.3"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "js_int",
  "ruma-api",
@@ -1682,6 +1691,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers"
 version = "0.17.4"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "rand",
  "ruma-identifiers-macros",
@@ -1693,6 +1703,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-macros"
 version = "0.17.4"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1703,6 +1714,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.1.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "serde",
  "strum",
@@ -1711,6 +1723,7 @@ dependencies = [
 [[package]]
 name = "ruma-serde"
 version = "0.2.3"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "form_urlencoded",
  "itoa",
@@ -1722,6 +1735,7 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.6.0-dev.1"
+source = "git+https://github.com/DevinR528/ruma?branch=get-state#9e305df0b1911457b55c7c7ddb7627f1172d15e0"
 dependencies = [
  "base64",
  "ring",
