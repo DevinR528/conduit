@@ -62,7 +62,7 @@ impl Sending {
         });
     }
 
-    pub fn send_pdu(&self, server: Box<ServerName>, pdu_id: &[u8]) -> Result<()> {
+    pub fn send_pdu(&self, server: &ServerName, pdu_id: &[u8]) -> Result<()> {
         let mut key = server.as_bytes().to_vec();
         key.push(0xff);
         key.extend_from_slice(pdu_id);

@@ -257,12 +257,15 @@ pub async fn get_public_rooms_filtered_route(
     db: State<'_, Database>,
     body: Ruma<get_public_rooms_filtered::v1::Request<'_>>,
 ) -> ConduitResult<get_public_rooms_filtered::v1::Response> {
+    let gen_filter = IncomingFilter {
+        generic_search_term: None,
+    };
     let response = client_server::get_public_rooms_filtered_helper(
         &db,
         None,
         body.limit,
         body.since.as_deref(),
-        &body.filter,
+        &body.filter.as_ref().unwrap_or(&gen_filter),
         &body.room_network,
     )
     .await?
@@ -305,7 +308,9 @@ pub async fn get_public_rooms_route(
         None,
         body.limit,
         body.since.as_deref(),
-        &IncomingFilter::default(),
+        &IncomingFilter {
+            generic_search_term: None,
+        },
         &IncomingRoomNetwork::Matrix,
     )
     .await?
@@ -354,7 +359,7 @@ pub async fn send_transaction_message_route<'a>(
 
         let get_state_response = send_request(
             &db.globals,
-            body.body.origin,
+            body.body.origin.clone(),
             ruma::api::federation::event::get_room_state::v1::Request {
                 room_id,
                 event_id: &event_id,
@@ -408,10 +413,11 @@ pub async fn send_transaction_message_route<'a>(
         .expect("resolve failed");
 
         if resolved.values().any(|id| &event_id == id) {
-            let pdu =
-                serde_json::from_value::<PduEvent>(value).expect("all ruma pdus are conduit pdus");
+            let pdu = serde_json::from_value::<PduEvent>(value.clone())
+                .expect("all ruma pdus are conduit pdus");
             if db.rooms.exists(&pdu.room_id)? {
-                db.rooms.append_pdu(&pdu, &db.globals, &db.account_data)?;
+                db.rooms
+                    .append_pdu(&pdu, &value, &db.globals, &db.account_data)?;
             }
         } else {
             log::warn!("event failed state resolution")
