@@ -40,7 +40,7 @@ pub fn update_tag_route(
         &db.globals,
     )?;
 
-    Ok(create_tag::Response.into())
+    Ok(create_tag::Response::new().into())
 }
 
 #[cfg_attr(
@@ -71,7 +71,7 @@ pub fn delete_tag_route(
         &db.globals,
     )?;
 
-    Ok(delete_tag::Response.into())
+    Ok(delete_tag::Response::new().into())
 }
 
 #[cfg_attr(

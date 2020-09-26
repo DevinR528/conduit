@@ -71,5 +71,5 @@ pub fn set_read_marker_route(
             &db.globals,
         )?;
     }
-    Ok(set_read_marker::Response.into())
+    Ok(set_read_marker::Response::new().into())
 }

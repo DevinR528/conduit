@@ -271,7 +271,7 @@ pub fn change_password_route(
         db.users.remove_device(&sender_id, &id)?;
     }
 
-    Ok(change_password::Response.into())
+    Ok(change_password::Response::new().into())
 }
 
 /// # `GET _matrix/client/r0/account/whoami`

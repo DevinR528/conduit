@@ -45,7 +45,7 @@ pub fn set_pushrule_route(//db: State<'_, Database>,
 ) -> ConduitResult<set_pushrule::Response> {
     // TODO
     warn!("TODO: set_pushrule_route");
-    Ok(set_pushrule::Response.into())
+    Ok(set_pushrule::Response::new().into())
 }
 
 #[cfg_attr(
@@ -55,7 +55,7 @@ pub fn set_pushrule_route(//db: State<'_, Database>,
 pub fn set_pushrule_enabled_route() -> ConduitResult<set_pushrule_enabled::Response> {
     // TODO
     warn!("TODO: set_pushrule_enabled_route");
-    Ok(set_pushrule_enabled::Response.into())
+    Ok(set_pushrule_enabled::Response::new().into())
 }
 
 #[cfg_attr(feature = "conduit_bin", get("/_matrix/client/r0/pushers"))]

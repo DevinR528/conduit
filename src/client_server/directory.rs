@@ -22,8 +22,6 @@ use ruma::{
     Raw, ServerName,
 };
 
-use std::convert::TryFrom;
-
 #[cfg(feature = "conduit_bin")]
 use rocket::{get, post, put};
 
@@ -37,15 +35,10 @@ pub async fn get_public_rooms_filtered_route(
 ) -> ConduitResult<get_public_rooms_filtered::Response> {
     get_public_rooms_filtered_helper(
         &db,
-        body.server
-            .as_ref()
-            .and_then(|s| Box::<ServerName>::try_from(s.to_owned()).ok())
-            .as_deref(),
+        body.server.as_deref(),
         body.limit,
         body.since.as_deref(),
-        &IncomingFilter {
-            generic_search_term: None,
-        },
+        None,
         &body.room_network,
     )
     .await
@@ -61,15 +54,10 @@ pub async fn get_public_rooms_route(
 ) -> ConduitResult<get_public_rooms::Response> {
     let response = get_public_rooms_filtered_helper(
         &db,
-        body.server
-            .as_ref()
-            .and_then(|s| Box::<ServerName>::try_from(s.to_owned()).ok())
-            .as_deref(),
+        body.server.as_deref(),
         body.limit,
         body.since.as_deref(),
-        &IncomingFilter {
-            generic_search_term: None,
-        },
+        None,
         &IncomingRoomNetwork::Matrix,
     )
     .await?
@@ -97,7 +85,7 @@ pub async fn set_room_visibility_route(
         room::Visibility::Private => db.rooms.set_public(&body.room_id, false)?,
     }
 
-    Ok(set_room_visibility::Response.into())
+    Ok(set_room_visibility::Response::new().into())
 }
 
 #[cfg_attr(
@@ -123,7 +111,7 @@ pub async fn get_public_rooms_filtered_helper(
     server: Option<&ServerName>,
     limit: Option<js_int::UInt>,
     since: Option<&str>,
-    filter: &IncomingFilter,
+    filter: Option<&IncomingFilter>,
     _network: &IncomingRoomNetwork,
 ) -> ConduitResult<get_public_rooms_filtered::Response> {
     if let Some(other_server) = server
@@ -136,9 +124,9 @@ pub async fn get_public_rooms_filtered_helper(
             federation::directory::get_public_rooms_filtered::v1::Request {
                 limit,
                 since: since.as_deref(),
-                filter: Filter {
+                filter: filter.as_deref().map(|filter| Filter {
                     generic_search_term: filter.generic_search_term.as_deref(),
-                },
+                }),
                 room_network: RoomNetwork::Matrix,
             },
         )

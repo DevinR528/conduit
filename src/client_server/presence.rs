@@ -41,5 +41,5 @@ pub fn set_presence_route(
         )?;
     }
 
-    Ok(set_presence::Response.into())
+    Ok(set_presence::Response::new().into())
 }

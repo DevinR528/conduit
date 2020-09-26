@@ -40,7 +40,7 @@ pub fn set_global_account_data_route(
         &db.globals,
     )?;
 
-    Ok(set_global_account_data::Response.into())
+    Ok(set_global_account_data::Response::new().into())
 }
 
 #[cfg_attr(

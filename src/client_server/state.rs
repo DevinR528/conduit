@@ -93,7 +93,7 @@ pub async fn send_state_event_for_empty_key_route(
 )]
 pub fn get_state_events_route(
     db: State<'_, Database>,
-    body: Ruma<get_state_events::Request>,
+    body: Ruma<get_state_events::Request<'_>>,
 ) -> ConduitResult<get_state_events::Response> {
     let sender_id = body.sender_id.as_ref().expect("user is authenticated");
 
@@ -121,7 +121,7 @@ pub fn get_state_events_route(
 )]
 pub fn get_state_events_for_key_route(
     db: State<'_, Database>,
-    body: Ruma<get_state_events_for_key::Request>,
+    body: Ruma<get_state_events_for_key::Request<'_>>,
 ) -> ConduitResult<get_state_events_for_key::Response> {
     let sender_id = body.sender_id.as_ref().expect("user is authenticated");
 
@@ -153,7 +153,7 @@ pub fn get_state_events_for_key_route(
 )]
 pub fn get_state_events_for_empty_key_route(
     db: State<'_, Database>,
-    body: Ruma<get_state_events_for_empty_key::Request>,
+    body: Ruma<get_state_events_for_empty_key::Request<'_>>,
 ) -> ConduitResult<get_state_events_for_empty_key::Response> {
     let sender_id = body.sender_id.as_ref().expect("user is authenticated");
 

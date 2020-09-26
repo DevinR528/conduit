@@ -2,11 +2,11 @@ mod edus;
 
 pub use edus::RoomEdus;
 
-use crate::{pdu::PduBuilder, server_server, utils, Error, PduEvent, Result};
+use crate::{pdu::PduBuilder, utils, Error, PduEvent, Result};
 use log::error;
 use ring::digest;
 use ruma::{
-    api::{client::error::ErrorKind, federation},
+    api::client::error::ErrorKind,
     events::{
         ignored_user_list,
         room::{
@@ -25,7 +25,6 @@ use std::{
     convert::{TryFrom, TryInto},
     mem,
     sync::Arc,
-    time::SystemTime,
 };
 
 /// The unique identifier of each state group.
@@ -778,13 +777,14 @@ impl Rooms {
             globals.server_name().as_str(),
             globals.keypair(),
             &mut pdu_json,
+            &ruma::RoomVersionId::Version6,
         )
         .expect("event is valid, we just created it");
 
         // Generate event id
         pdu.event_id = EventId::try_from(&*format!(
             "${}",
-            ruma::signatures::reference_hash(&pdu_json)
+            ruma::signatures::reference_hash(&pdu_json, &ruma::RoomVersionId::Version6)
                 .expect("ruma can calculate reference hashes")
         ))
         .expect("ruma's reference hashes are valid event ids");

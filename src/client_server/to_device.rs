@@ -25,7 +25,7 @@ pub fn send_event_to_device_route(
         .existing_txnid(sender_id, device_id, &body.txn_id)?
         .is_some()
     {
-        return Ok(send_event_to_device::Response.into());
+        return Ok(send_event_to_device::Response::new().into());
     }
 
     for (target_user_id, map) in &body.messages {
@@ -66,5 +66,5 @@ pub fn send_event_to_device_route(
     db.transaction_ids
         .add_txnid(sender_id, device_id, &body.txn_id, &[])?;
 
-    Ok(send_event_to_device::Response.into())
+    Ok(send_event_to_device::Response::new().into())
 }

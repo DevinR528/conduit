@@ -173,7 +173,7 @@ pub async fn invite_user_route(
             )
             .await?;
 
-        Ok(invite_user::Response.into())
+        Ok(invite_user::Response::new().into())
     } else {
         Err(Error::BadRequest(ErrorKind::NotFound, "User not found."))
     }
@@ -498,8 +498,11 @@ async fn join_room_by_id_helper(
         // Generate event id
         let event_id = EventId::try_from(&*format!(
             "${}",
-            ruma::signatures::reference_hash(&join_event_stub_value)
-                .expect("ruma can calculate reference hashes")
+            ruma::signatures::reference_hash(
+                &join_event_stub_value,
+                &ruma::RoomVersionId::Version6
+            )
+            .expect("ruma can calculate reference hashes")
         ))
         .expect("ruma's reference hashes are valid event ids");
 
@@ -511,6 +514,7 @@ async fn join_room_by_id_helper(
             db.globals.server_name().as_str(),
             db.globals.keypair(),
             &mut join_event_stub_value,
+            &ruma::RoomVersionId::Version6,
         )
         .expect("event is valid, we just created it");
 
@@ -531,7 +535,7 @@ async fn join_room_by_id_helper(
                 .expect("converting raw jsons to values always works");
             let event_id = EventId::try_from(&*format!(
                 "${}",
-                ruma::signatures::reference_hash(&value)
+                ruma::signatures::reference_hash(&value, &ruma::RoomVersionId::Version6)
                     .expect("ruma can calculate reference hashes")
             ))
             .expect("ruma's reference hashes are valid event ids");

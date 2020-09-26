@@ -92,7 +92,7 @@ pub async fn set_displayname_route(
         )?;
     }
 
-    Ok(set_display_name::Response.into())
+    Ok(set_display_name::Response::new().into())
 }
 
 #[cfg_attr(
@@ -186,7 +186,7 @@ pub async fn set_avatar_url_route(
         )?;
     }
 
-    Ok(set_avatar_url::Response.into())
+    Ok(set_avatar_url::Response::new().into())
 }
 
 #[cfg_attr(

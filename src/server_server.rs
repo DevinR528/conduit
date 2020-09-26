@@ -14,9 +14,11 @@ use ruma::{
         },
         OutgoingRequest,
     },
-    directory::{IncomingFilter, IncomingRoomNetwork},
+    directory::IncomingRoomNetwork,
     EventId, ServerName,
 };
+
+use std::convert::TryInto;
 use std::{
     collections::BTreeMap,
     convert::TryFrom,
@@ -216,7 +218,9 @@ pub fn get_server_version() -> ConduitResult<get_server_version::Response> {
 pub fn get_server_keys(db: State<'_, Database>) -> Json<String> {
     let mut verify_keys = BTreeMap::new();
     verify_keys.insert(
-        format!("ed25519:{}", db.globals.keypair().version()),
+        format!("ed25519:{}", db.globals.keypair().version())
+            .try_into()
+            .expect("Valid server key id"),
         VerifyKey {
             key: base64::encode_config(db.globals.keypair().public_key(), base64::STANDARD_NO_PAD),
         },
@@ -262,7 +266,7 @@ pub async fn get_public_rooms_filtered_route(
         None,
         body.limit,
         body.since.as_deref(),
-        &body.filter,
+        body.filter.as_ref(),
         &body.room_network,
     )
     .await?
@@ -305,9 +309,7 @@ pub async fn get_public_rooms_route(
         None,
         body.limit,
         body.since.as_deref(),
-        &IncomingFilter {
-            generic_search_term: None,
-        },
+        None,
         &IncomingRoomNetwork::Matrix,
     )
     .await?
@@ -349,7 +351,7 @@ pub async fn send_transaction_message_route<'a>(
 
     let mut resolved_map = BTreeMap::new();
     for pdu in &body.pdus {
-        let (event_id, value) = process_incoming_pdu(pdu);
+        let (event_id, value) = process_incoming_pdu(pdu, &ruma::RoomVersionId::Version6);
         let event = serde_json::from_value::<state_res::StateEvent>(value.clone()).unwrap();
         let room_id = event.room_id().expect("found PduStub event");
 
@@ -382,7 +384,7 @@ pub async fn send_transaction_message_route<'a>(
             .iter()
             .chain(get_state_response.auth_chain.iter()) // add auth events
             .map(|pdu| {
-                let (event_id, json) = process_incoming_pdu(pdu);
+                let (event_id, json) = process_incoming_pdu(pdu, &ruma::RoomVersionId::Version6);
                 (
                     event_id,
                     std::sync::Arc::new(
@@ -399,7 +401,7 @@ pub async fn send_transaction_message_route<'a>(
             &[
                 our_current_state
                     .iter()
-                    .map(|((ev, sk), v)| ((ev.clone(), Some(sk.to_owned())), v.event_id.clone()))
+                    .map(|((ev, sk), v)| ((ev.clone(), sk.to_owned()), v.event_id.clone()))
                     .collect::<BTreeMap<_, _>>(),
                 // TODO we may not want the auth events chained in here for resolution?
                 their_current_state
@@ -487,11 +489,15 @@ pub fn get_missing_events_route<'a>(
 /// Generates a correct eventId for the incoming pdu.
 ///
 /// Returns a `state_res::StateEvent` which can be converted freely and has accessor methods.
-fn process_incoming_pdu(pdu: &ruma::Raw<ruma::events::pdu::Pdu>) -> (EventId, serde_json::Value) {
+fn process_incoming_pdu(
+    pdu: &ruma::Raw<ruma::events::pdu::Pdu>,
+    version: &ruma::RoomVersionId,
+) -> (EventId, serde_json::Value) {
     let mut value = serde_json::to_value(pdu.json().get()).expect("all ruma pdus are json values");
     let event_id = EventId::try_from(&*format!(
         "${}",
-        ruma::signatures::reference_hash(&value).expect("ruma can calculate reference hashes")
+        ruma::signatures::reference_hash(&value, version)
+            .expect("ruma can calculate reference hashes")
     ))
     .expect("ruma's reference hashes are valid event ids");
 

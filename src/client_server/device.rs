@@ -71,7 +71,7 @@ pub fn update_device_route(
     db.users
         .update_device_metadata(&sender_id, &body.body.device_id, &device)?;
 
-    Ok(update_device::Response.into())
+    Ok(update_device::Response::new().into())
 }
 
 #[cfg_attr(
@@ -118,7 +118,7 @@ pub fn delete_device_route(
 
     db.users.remove_device(&sender_id, &body.body.device_id)?;
 
-    Ok(delete_device::Response.into())
+    Ok(delete_device::Response::new().into())
 }
 
 #[cfg_attr(
@@ -166,5 +166,5 @@ pub fn delete_devices_route(
         db.users.remove_device(&sender_id, &device_id)?
     }
 
-    Ok(delete_devices::Response.into())
+    Ok(delete_devices::Response::new().into())
 }
