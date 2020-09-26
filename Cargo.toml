@@ -73,8 +73,8 @@ name = "conduit"
 path = "src/lib.rs"
 
 [patch."https://github.com/timokoesters/ruma"]
-ruma = { path = "../ruma/ruma" }
-# ruma = { git = "https://github.com/ruma/ruma" }
+# ruma = { path = "../ruma/ruma" }
+ruma = { git = "https://github.com/DevinR528/ruma", branch = "devin-fed-fixes" }
 
 # [patch."https://github.com/timokoesters/state-res"]
 # state-res = { path = "../../state-res" }

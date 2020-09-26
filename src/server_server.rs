@@ -352,20 +352,29 @@ pub async fn send_transaction_message_route<'a>(
     let mut resolved_map = BTreeMap::new();
     for pdu in &body.pdus {
         let (event_id, value) = process_incoming_pdu(pdu, &ruma::RoomVersionId::Version6);
+
+        // Not a state event
+        if value.get("state_key").is_none() {
+            let pdu = serde_json::from_value::<PduEvent>(value.clone())
+                .expect("ruma::Pdu is a valid conduit PDU");
+
+            if !db.rooms.is_joined(&pdu.sender, &pdu.room_id)? {
+                // TODO: auth rules apply to all events, not only those with a state key
+                log::error!("Unauthorized {}", pdu.kind);
+                return Err(Error::BadRequest(
+                    ruma::api::client::error::ErrorKind::Forbidden,
+                    "Event is not authorized",
+                ));
+            }
+            db.rooms
+                .append_pdu(&pdu, &value, &db.globals, &db.account_data)?;
+
+            resolved_map.insert(event_id, Ok::<(), String>(()));
+            continue;
+        }
+
         let event = serde_json::from_value::<state_res::StateEvent>(value.clone()).unwrap();
         let room_id = event.room_id().expect("found PduStub event");
-
-        // if event.state_key().is_none() {
-        //     resolved_map.insert(event_id, Ok::<(), String>(()));
-        //     db.rooms.append_pdu(
-        //         &PduEvent::from(&event),
-        //         &value,
-        //         &db.globals,
-        //         &db.account_data,
-        //     )?;
-
-        //     continue;
-        // }
 
         let our_current_state = db.rooms.room_state_full(room_id)?;
 
@@ -379,6 +388,7 @@ pub async fn send_transaction_message_route<'a>(
         )
         .await
         .unwrap();
+
         let their_current_state = get_state_response
             .pdus
             .iter()
