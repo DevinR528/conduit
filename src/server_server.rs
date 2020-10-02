@@ -480,6 +480,7 @@ pub fn get_missing_events_route<'a>(
                 i += 1;
                 continue;
             }
+
             queued_events.extend_from_slice(
                 &serde_json::from_value::<Vec<EventId>>(
                     pdu.get("prev_events").cloned().ok_or_else(|| {
@@ -490,12 +491,21 @@ pub fn get_missing_events_route<'a>(
             );
             events.push(PduEvent::to_outgoing_federation_event(pdu));
         }
+
         i += 1;
     }
 
     dbg!(&events);
 
-    Ok(get_missing_events::v1::Response { events }.into())
+    Ok(get_missing_events::v1::Response {
+        events: events
+            .into_iter()
+            .map(|p| p.deserialize().unwrap())
+            .collect(),
+    }
+    .into())
+}
+
 /// Generates a correct eventId for the incoming pdu.
 ///
 /// Returns a `state_res::StateEvent` which can be converted freely and has accessor methods.

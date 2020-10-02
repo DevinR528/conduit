@@ -2,10 +2,8 @@ use crate::Error;
 use js_int::UInt;
 use ruma::{
     events::{
-        pdu::{EventHash, PduStub},
-        room::member::MemberEventContent,
-        AnyEvent, AnyRoomEvent, AnyStateEvent, AnyStrippedStateEvent, AnySyncRoomEvent,
-        AnySyncStateEvent, EventType, StateEvent,
+        pdu::EventHash, room::member::MemberEventContent, AnyEvent, AnyRoomEvent, AnyStateEvent,
+        AnyStrippedStateEvent, AnySyncRoomEvent, AnySyncStateEvent, EventType, StateEvent,
     },
     EventId, Raw, RoomId, ServerKeyId, ServerName, UserId,
 };
@@ -203,7 +201,7 @@ impl PduEvent {
 
     pub fn to_outgoing_federation_event(
         mut pdu_json: serde_json::Value,
-    ) -> Raw<ruma::events::pdu::PduStub> {
+    ) -> Raw<ruma::events::pdu::Pdu> {
         if let Some(unsigned) = pdu_json
             .as_object_mut()
             .expect("json is object")
